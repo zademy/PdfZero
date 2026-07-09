@@ -20,6 +20,7 @@ export default function PdfCanvas() {
     setSelectedElement, selectedElement, selectedElementPage,
     pageCount, extractedEdits,
     setPageBg: storeSetPageBg,
+    setBlockBgs,
   } = usePdfStore()
 
   const canvasRef    = useRef(null)
@@ -145,6 +146,32 @@ export default function PdfCanvas() {
     const canvasScale = zoom * dpr  // NOT BASE_SCALE * zoom * dpr
     return sampleLocalBackground(canvasRef.current, x, y, w, h, canvasScale) || pageBg || 'white'
   }, [zoom, pageBg])
+
+  // ── Persist per-block local backgrounds for the exporter ─────────────────
+  // The live cover-div below already samples an accurate local color per
+  // edited block (so watermarks/seals/colored regions render correctly on
+  // screen). exportPdf() previously only had one flat page-wide color to
+  // whiteout with, which shows as an obvious mismatched patch over anything
+  // non-flat (e.g. a seal). Mirror the same per-block sample into the store
+  // here so export can use each block's own color instead.
+  useEffect(() => {
+    if (!file || !canvasRef.current) return
+    const layer  = getLayer(currentPage)
+    const blocks = (layer.texts || []).filter(b => b.isEdited && b.originalId)
+    if (blocks.length === 0) return
+    const dpr = Math.min(window.devicePixelRatio || 1, 2)
+    const canvasScale = zoom * dpr
+    const map = {}
+    blocks.forEach(block => {
+      const fontSize = block.originalFontSize || block.fontSize || 12
+      const width  = Math.max(block.originalWidth  || block.width  || fontSize * 4, 1)
+      const height = Math.max(block.originalHeight || block.height || fontSize, 1)
+      const cx = (block.originalX ?? block.x)
+      const cy = (block.originalY ?? block.y)
+      map[block.id] = sampleLocalBackground(canvasRef.current, cx, cy, width, height, canvasScale) || pageBg || 'white'
+    })
+    setBlockBgs(currentPage, map)
+  }, [file, currentPage, zoom, pageBg, canvasVersion, editLayers, getLayer, setBlockBgs])
 
   if (!file) return null
 

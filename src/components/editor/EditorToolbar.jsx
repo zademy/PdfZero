@@ -33,7 +33,7 @@ const FONTS = [
 export default function EditorToolbar() {
   const {
     activeTool, setActiveTool, zoom, setZoom,
-    file, editLayers, pageCount, fileName, pageBgs,
+    file, editLayers, pageCount, fileName, pageBgs, blockBgs,
     currentPage, addTextBlock,
     selectedElement, selectedElementPage,
     updateTextBlock, commitExtractedEdit,
@@ -144,7 +144,7 @@ export default function EditorToolbar() {
     if (!file) { toast.error('No PDF loaded'); return }
     const tid = toast.loading('Exporting PDF...')
     try {
-      const bytes = await exportPdf(file, editLayers, pageCount, pageBgs)
+      const bytes = await exportPdf(file, editLayers, pageCount, pageBgs, blockBgs)
       downloadBytes(bytes, `pdfzero-${fileName || 'edited.pdf'}`)
       toast.success('PDF downloaded!', { id: tid })
     } catch (e) {

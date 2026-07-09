@@ -10,12 +10,18 @@ let pdfDocument = null
 const pageCache    = {}   // pageNum → PDFPageProxy
 const fontMapCache = {}   // pageNum → { internalId: realName }
 
+const fontDataCache = {}
+
 export async function loadPdf(arrayBuffer) {
   const copy = arrayBuffer.slice(0)
-  pdfDocument = await pdfjsLib.getDocument({ data: copy }).promise
+  pdfDocument = await pdfjsLib.getDocument({
+    data: copy,
+    fontExtraProperties: true,
+  }).promise
   // Clear all caches on new file
   Object.keys(pageCache).forEach(k => delete pageCache[k])
   Object.keys(fontMapCache).forEach(k => delete fontMapCache[k])
+  Object.keys(fontDataCache).forEach(k => delete fontDataCache[k])
   return pdfDocument
 }
 
@@ -147,6 +153,72 @@ function fontNameFromStyle(style) {
   return cleanFontName(raw)
 }
 
+function normalizeFontCacheKey(value = '') {
+  return String(value || '').replace(/^[A-Z]{6}\+/, '').trim().toLowerCase()
+}
+
+function fontBytesFromCommonObj(obj) {
+  const candidates = [
+    obj?.data,
+    obj?.font?.data,
+    obj?.rawData,
+    obj?.file,
+    obj?.fontFile,
+  ]
+
+  for (const candidate of candidates) {
+    if (candidate instanceof Uint8Array && candidate.byteLength) return candidate
+    if (candidate instanceof ArrayBuffer && candidate.byteLength) return new Uint8Array(candidate)
+    if (ArrayBuffer.isView(candidate) && candidate.byteLength) {
+      return new Uint8Array(candidate.buffer, candidate.byteOffset, candidate.byteLength)
+    }
+  }
+
+  return null
+}
+
+function rememberFontData(pageNum, fontId, obj) {
+  const bytes = fontBytesFromCommonObj(obj)
+  if (!bytes?.byteLength) return
+
+  const names = [
+    fontId,
+    obj?.name,
+    obj?.loadedName,
+    obj?.baseFontName,
+    obj?.font?.name,
+  ].map(cleanFontName).filter(Boolean)
+
+  const entry = {
+    bytes,
+    name: cleanFontName(obj?.name || obj?.loadedName || names[0] || fontId),
+    mimetype: obj?.mimetype || obj?.type || '',
+  }
+
+  for (const name of names) {
+    const key = normalizeFontCacheKey(name)
+    if (!key) continue
+    fontDataCache[key] = entry
+    fontDataCache[`${pageNum}:${key}`] = entry
+  }
+}
+
+export function getEmbeddedFontData(pageNum, fontResource = {}, fallbackName = '') {
+  const candidates = [
+    fontResource?.internalName,
+    fontResource?.resolvedName,
+    fallbackName,
+  ].map(normalizeFontCacheKey).filter(Boolean)
+
+  for (const key of candidates) {
+    const pageKey = `${pageNum}:${key}`
+    if (fontDataCache[pageKey]) return fontDataCache[pageKey]
+    if (fontDataCache[key]) return fontDataCache[key]
+  }
+
+  return null
+}
+
 function textGeometry(item, tx, style) {
   const scaleY = Math.sqrt(tx[2] * tx[2] + tx[3] * tx[3])
   const scaleX = Math.sqrt(tx[0] * tx[0] + tx[1] * tx[1])
@@ -193,6 +265,7 @@ async function resolveFontNames(page, pageNum) {
       try {
         page.commonObjs.get(fontId, (obj) => {
           if (obj) {
+            rememberFontData(pageNum, fontId, obj)
             const realName = obj.name || obj.loadedName || ''
             // Only accept names that look like real font names (not internal IDs)
             if (realName && !realName.match(/^g_d\d+_/)) {
@@ -221,6 +294,7 @@ async function resolveFontNames(page, pageNum) {
           try {
             page.commonObjs.get(fontId, (obj) => {
               if (obj) {
+                rememberFontData(pageNum, fontId, obj)
                 const realName = obj.name || obj.loadedName || ''
                 if (realName && !realName.match(/^g_d\d+_/)) {
                   map[fontId] = realName.replace(/^[A-Z]{6}\+/, '')

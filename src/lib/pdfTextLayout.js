@@ -105,7 +105,7 @@ export function planSingleLineFit({
   const slots = Math.max(chars.length - 1, 0)
   const tolerance = Math.max(0.35, size * 0.025)
 
-  if (!preserveWidth || !targetWidth || chars.length <= 1) {
+  if (!preserveWidth || !targetWidth || chars.length <= 1 || naturalWidth <= targetWidth + tolerance) {
     return {
       text,
       size,
@@ -114,13 +114,13 @@ export function planSingleLineFit({
       characterSpacing: 0,
       width: naturalWidth,
       overflow: preserveWidth && naturalWidth > targetWidth + tolerance,
-      status: naturalWidth > targetWidth + tolerance ? 'overflow' : 'natural',
+      status: 'natural',
     }
   }
 
   const spacing = slots ? (targetWidth - naturalWidth) / slots : 0
   const minSpacing = -size * 0.18
-  const maxSpacing = size * 0.32
+  const maxSpacing = 0
 
   if (spacing >= minSpacing && spacing <= maxSpacing) {
     return {

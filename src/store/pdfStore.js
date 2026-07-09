@@ -31,6 +31,11 @@ export const usePdfStore = create((set, get) => ({
   selectedElement: null,
   selectedElementPage: null,
   pageBgs: {},
+  // blockBgs[pageNum][blockId] = locally-sampled bg color for one edited
+  // block — lets the exporter whiteout each block with its own accurate
+  // color (matters on watermarks/seals/colored regions) instead of one
+  // flat page-wide color.
+  blockBgs: {},
   activeTool: "select",
 
   // Mobile drawer visibility — Pages (left) and Properties (right) panels
@@ -44,6 +49,10 @@ export const usePdfStore = create((set, get) => ({
   setZoom:           (z)           => set({ zoom: Math.max(0.25, Math.min(3.0, Math.round(z * 100) / 100)) }),
   setActiveTool:     (t)           => set({ activeTool: t, selectedElement: null, selectedElementPage: null }),
   setPageBg: (pageNum, bg) => set(s => ({ pageBgs: { ...s.pageBgs, [pageNum]: bg } })),
+  // Bulk-merge per-block local backgrounds for one page in a single update
+  setBlockBgs: (pageNum, bgMap) => set(s => ({
+    blockBgs: { ...s.blockBgs, [pageNum]: { ...(s.blockBgs[pageNum] || {}), ...bgMap } }
+  })),
   setSelectedElement:(el, page)    => set({ selectedElement: el, selectedElementPage: page }),
 
   setMobilePagesOpen: (open) => set({
@@ -271,7 +280,7 @@ export const usePdfStore = create((set, get) => ({
   reset: () => set({
     file: null, fileName: '', fileSize: 0, pageCount: 0, currentPage: 1,
     zoom: 1.0, editLayers: {}, extractedEdits: {}, selectedElement: null,
-    selectedElementPage: null, activeTool: "select", pageBgs: {},
+    selectedElementPage: null, activeTool: "select", pageBgs: {}, blockBgs: {},
     historyPast: [], historyFuture: [],
     mobilePagesOpen: false, mobilePropertiesOpen: false,
   }),

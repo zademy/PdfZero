@@ -350,22 +350,6 @@ export default function TextBlock({
       onKeyDown={handleKeyDown}
       title={fitOverflow ? 'Text may overflow the original PDF run' : editing ? undefined : 'Double-click to edit'}
     >
-      {block.isEdited && !editing && block.originalStr && (
-        <span
-          aria-hidden="true"
-          style={{
-            position: 'absolute',
-            left: 0,
-            top: 0,
-            color: pageBg || 'white',
-            pointerEvents: 'none',
-            userSelect: 'none',
-            zIndex: 0,
-          }}
-        >
-          {block.originalStr}
-        </span>
-      )}
       <span style={{ position: 'relative', zIndex: 1 }}>{draftText}</span>
     </div>
   )

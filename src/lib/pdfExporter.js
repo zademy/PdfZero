@@ -1,7 +1,25 @@
-import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib'
+import {
+  PDFDocument,
+  rgb,
+  StandardFonts,
+  degrees,
+  pushGraphicsState,
+  popGraphicsState,
+  beginText,
+  endText,
+  setFillingColor,
+  setFontAndSize,
+  setTextMatrix,
+  setCharacterSpacing,
+  setWordSpacing,
+  setCharacterSqueeze,
+  setTextRenderingMode,
+  showText,
+} from 'pdf-lib'
 import * as pdfjsLib from 'pdfjs-dist'
+import fontkit from '@pdf-lib/fontkit'
 import { encryptPDF } from '@pdfsmaller/pdf-encrypt'
-import { BASE_SCALE, classifyFont } from './pdfRenderer.js'
+import { BASE_SCALE, classifyFont, getEmbeddedFontData } from './pdfRenderer.js'
 import { layoutTextForBlock, splitTextLines, textChars } from './pdfTextLayout.js'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc ||= new URL(
@@ -67,13 +85,88 @@ function canvasToPdf(cx, cy, cFontSize, pageH, cBaselineOffset) {
   return { x, y, size }
 }
 
-function drawLineWithSpacing(page, text, options, spacing = 0) {
+const pageFontKeyCache = new WeakMap()
+
+function getPageFontKey(page, font) {
+  let pageCache = pageFontKeyCache.get(page)
+  if (!pageCache) {
+    pageCache = new Map()
+    pageFontKeyCache.set(page, pageCache)
+  }
+
+  const ref = font?.ref
+  const key = `${font?.name || 'font'}:${ref?.objectNumber ?? ''}:${ref?.generationNumber ?? ''}`
+  if (!pageCache.has(key)) {
+    pageCache.set(key, page.node.newFontDictionary(font.name, font.ref))
+  }
+  return pageCache.get(key)
+}
+
+function normalizeHorizontalScale(value) {
+  const n = Number(value)
+  if (!Number.isFinite(n) || n <= 0) return 100
+  return n <= 10 ? n * 100 : n
+}
+
+function fontSupportsText(font, text) {
+  try {
+    const supported = new Set(font.getCharacterSet?.() || [])
+    if (!supported.size) return false
+
+    for (const ch of textChars(text)) {
+      if (ch === '\n' || ch === '\r' || ch === '\t') continue
+      if (!supported.has(ch.codePointAt(0))) return false
+    }
+
+    return true
+  } catch {
+    return false
+  }
+}
+
+function drawVectorTextLine(page, text, options, block, spacing = 0) {
+  const encoded = options.font.encodeText(text)
+  const fontKey = getPageFontKey(page, options.font)
+  const angle = (Number(block.rotation) || 0) * Math.PI / 180
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  const charSpacing = (Number(block.charSpacing) || 0) + (Number(spacing) || 0)
+  const wordSpacing = Number(block.wordSpacing) || 0
+  const horizontalScale = normalizeHorizontalScale(block.horizontalScale)
+  const renderingMode = Number.isFinite(Number(block.textRenderingMode))
+    ? Number(block.textRenderingMode)
+    : 0
+
+  page.pushOperators(
+    pushGraphicsState(),
+    beginText(),
+    setFillingColor(options.color),
+    setFontAndSize(fontKey, options.size),
+    setCharacterSpacing(charSpacing),
+    setWordSpacing(wordSpacing),
+    setCharacterSqueeze(horizontalScale),
+    setTextRenderingMode(renderingMode),
+    setTextMatrix(cos, sin, -sin, cos, options.x, options.y),
+    showText(encoded),
+    endText(),
+    popGraphicsState(),
+  )
+}
+
+function drawLineWithSpacing(page, text, options, spacing = 0, block = {}) {
   const chars = textChars(text)
   if (!chars.length) return
 
-  if (!spacing) {
-    page.drawText(text, options)
+  try {
+    drawVectorTextLine(page, text, options, block, spacing)
     return
+  } catch (_) {
+    // Fall back to pdf-lib's public drawText path for fonts that cannot encode
+    // the edited string. The caller will retry with Helvetica if this also fails.
+    if (!spacing) {
+      page.drawText(text, options)
+      return
+    }
   }
 
   let cursorX = options.x
@@ -99,7 +192,7 @@ function drawFittedText(page, text, options, block) {
     const y = options.y - index * layout.lineHeight
     const lineOptions = { ...options, y, size: line.size }
     if (!explicitLines[index]?.length) return
-    drawLineWithSpacing(page, line.text, lineOptions, line.characterSpacing)
+    drawLineWithSpacing(page, line.text, lineOptions, line.characterSpacing, block)
   })
 
   return {
@@ -136,6 +229,38 @@ function parseRgbString(str) {
   const m = str.match(/(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/)
   if (m) return rgb(+m[1]/255, +m[2]/255, +m[3]/255)
   return rgb(1,1,1)
+}
+
+function rgbArrayToCss([r, g, b]) {
+  return `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`
+}
+
+function sampleCanvasBg(ctx, canvas, x, y, w, h, fallback = 'rgb(255,255,255)') {
+  try {
+    const pts = []
+    const offset = 2
+    const step = Math.max(Math.round(Math.min(w, h, 10) / 2), 2)
+    for (let px = x; px <= x + w; px += step) {
+      pts.push([px, y - offset], [px, y + h + offset])
+    }
+    for (let py = y; py <= y + h; py += step) {
+      pts.push([x - offset, py], [x + w + offset, py])
+    }
+
+    const colors = pts
+      .map(([px, py]) => [Math.round(px), Math.round(py)])
+      .filter(([px, py]) => px >= 0 && py >= 0 && px < canvas.width && py < canvas.height)
+      .map(([px, py]) => [...ctx.getImageData(px, py, 1, 1).data].slice(0, 3))
+
+    if (!colors.length) return fallback
+    const median = (idx) => {
+      const sorted = colors.map(c => c[idx]).sort((a, b) => a - b)
+      return sorted[sorted.length >> 1]
+    }
+    return rgbArrayToCss([median(0), median(1), median(2)])
+  } catch {
+    return fallback
+  }
 }
 
 function normalizeWatermarkFamily(fontFamily = 'Helvetica') {
@@ -291,13 +416,229 @@ function sanitize(str) {
     .join('')
 }
 
+function canvasToPngBytes(canvas) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(async (blob) => {
+      if (!blob) {
+        reject(new Error('Could not encode flattened page'))
+        return
+      }
+      resolve(await blob.arrayBuffer())
+    }, 'image/png')
+  })
+}
+
+function drawVisualCover(ctx, canvas, block, scale, fallbackBg) {
+  const fontSize = block.originalFontSize || block.fontSize || 12
+  const x = (block.originalX ?? block.x ?? 0) * scale
+  const y = (block.originalY ?? block.y ?? 0) * scale
+  const w = Math.max((block.originalWidth || block.width || fontSize * 4) * scale, 1)
+  const h = Math.max((block.originalHeight || block.height || fontSize) * scale, 1)
+  const bg = sampleCanvasBg(ctx, canvas, x, y, w, h, fallbackBg)
+  const pad = 2 * scale
+
+  ctx.save()
+  ctx.filter = `blur(${Math.max(1, scale)}px)`
+  ctx.fillStyle = bg
+  ctx.fillRect(x - 0.75 * scale, y - pad, w + pad * 2, h + pad * 2)
+  ctx.restore()
+}
+
+function drawVisualText(ctx, block, scale) {
+  const text = String(block.str || '')
+  if (!text.trim()) return
+
+  const sourceSize = block.fontSize || 12
+  const fontSize = Math.max(sourceSize, 4) * scale
+  const weight = block.fontBold ? '700' : '400'
+  const style = block.fontItalic ? 'italic' : 'normal'
+  const family = block.fontFamily || 'Arial, Helvetica, sans-serif'
+  const baselineOffset = (block.baselineOffset ?? sourceSize * 0.8) * scale
+  const lineHeight = Math.max(block.lineHeight || block.height || sourceSize, sourceSize) * scale
+  const x = (block.x || 0) * scale
+  const y = (block.y || 0) * scale + baselineOffset
+
+  ctx.save()
+  ctx.fillStyle = block.color || '#000000'
+  ctx.font = `${style} ${weight} ${fontSize}px ${family}`
+  ctx.textBaseline = 'alphabetic'
+  ctx.textAlign = 'left'
+
+  const angle = (Number(block.rotation) || 0) * Math.PI / 180
+  ctx.translate(x, y)
+  if (angle) ctx.rotate(angle)
+
+  splitTextLines(text).forEach((line, index) => {
+    if (line) ctx.fillText(line, 0, index * lineHeight)
+  })
+
+  ctx.restore()
+}
+
+function drawVisualAnnotations(ctx, annotations, scale) {
+  for (const ann of annotations || []) {
+    const x = (ann.x || 0) * scale
+    const y = (ann.y || 0) * scale
+    const w = (ann.width || 0) * scale
+    const h = (ann.height || 0) * scale
+
+    ctx.save()
+    if (ann.type === 'highlight') {
+      ctx.globalAlpha = 0.4
+      ctx.fillStyle = 'rgb(255,235,38)'
+      ctx.fillRect(x, y, w, h)
+    } else if (ann.type === 'redact') {
+      ctx.fillStyle = '#000000'
+      ctx.fillRect(x, y, w, h)
+    } else if (ann.type === 'rect') {
+      ctx.strokeStyle = ann.color || '#e84545'
+      ctx.lineWidth = 1.5 * scale
+      ctx.strokeRect(x, y, w, h)
+    }
+    ctx.restore()
+  }
+}
+
+function layerHasVisualEdits(layer) {
+  if (!layer) return false
+
+  const hasTextEdits = (layer.texts || []).some((block) => {
+    if (block?.isEdited) return true
+    return Boolean(String(block?.str || '').trim())
+  })
+
+  return hasTextEdits || Boolean((layer.annotations || []).length)
+}
+
+async function exportVisualPdf(originalArrayBuffer, editLayers, pageCount, pageBgs) {
+  const requestedPageCount = Number(pageCount) || 0
+  const requestedEditedPages = new Set()
+
+  for (let i = 1; i <= requestedPageCount; i++) {
+    if (layerHasVisualEdits(editLayers?.[i])) requestedEditedPages.add(i)
+  }
+
+  if (!requestedEditedPages.size) {
+    return new Uint8Array(originalArrayBuffer.slice(0))
+  }
+
+  const srcTask = pdfjsLib.getDocument({ data: originalArrayBuffer.slice(0), fontExtraProperties: true })
+  const src = await srcTask.promise
+  const originalDoc = await PDFDocument.load(originalArrayBuffer.slice(0), { ignoreEncryption: true })
+  const out = await PDFDocument.create()
+  const renderScale = 3
+
+  try {
+    const totalPages = Math.min(
+      requestedPageCount || src.numPages,
+      src.numPages,
+      originalDoc.getPageCount(),
+    )
+    const editedPages = new Set(
+      [...requestedEditedPages].filter((pageNum) => pageNum >= 1 && pageNum <= totalPages)
+    )
+    const copiedUneditedPages = new Map()
+    const uneditedPageNums = []
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (!editedPages.has(i)) uneditedPageNums.push(i)
+    }
+
+    if (uneditedPageNums.length) {
+      const copiedPages = await out.copyPages(originalDoc, uneditedPageNums.map((pageNum) => pageNum - 1))
+      copiedPages.forEach((page, index) => {
+        copiedUneditedPages.set(uneditedPageNums[index], page)
+      })
+    }
+
+    for (let i = 1; i <= totalPages; i++) {
+      if (!editedPages.has(i)) {
+        const copiedPage = copiedUneditedPages.get(i)
+        if (copiedPage) out.addPage(copiedPage)
+        continue
+      }
+
+      const page = await src.getPage(i)
+      const viewport = page.getViewport({ scale: renderScale })
+      const baseViewport = page.getViewport({ scale: 1 })
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d', { alpha: false })
+
+      canvas.width = Math.max(1, Math.round(viewport.width))
+      canvas.height = Math.max(1, Math.round(viewport.height))
+      ctx.fillStyle = '#ffffff'
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      await page.render({ canvasContext: ctx, viewport }).promise
+
+      const layer = editLayers?.[i] || { texts: [], annotations: [] }
+      const coordScale = renderScale / BASE_SCALE
+      const fallbackBg = pageBgs?.[i] || 'rgb(255,255,255)'
+
+      for (const block of layer.texts || []) {
+        if (block.isEdited) drawVisualCover(ctx, canvas, block, coordScale, fallbackBg)
+      }
+      for (const block of layer.texts || []) {
+        drawVisualText(ctx, block, coordScale)
+      }
+      drawVisualAnnotations(ctx, layer.annotations, coordScale)
+
+      const pngBytes = await canvasToPngBytes(canvas)
+      const png = await out.embedPng(pngBytes)
+      const outPage = out.addPage([baseViewport.width, baseViewport.height])
+      outPage.drawImage(png, {
+        x: 0,
+        y: 0,
+        width: baseViewport.width,
+        height: baseViewport.height,
+      })
+
+      canvas.width = 1
+      canvas.height = 1
+    }
+
+    return await out.save({ useObjectStreams: true, addDefaultPage: false })
+  } finally {
+    await srcTask.destroy()
+  }
+}
+
 // ─── Main export ──────────────────────────────────────────────────────────
-export async function exportPdf(originalArrayBuffer, editLayers, pageCount, pageBgs) {
+async function exportVectorPdf(originalArrayBuffer, editLayers, pageCount, pageBgs, blockBgs) {
   const pdfDoc    = await PDFDocument.load(originalArrayBuffer, { ignoreEncryption: true })
+  pdfDoc.registerFontkit(fontkit)
   const pages     = pdfDoc.getPages()
   const fontCache = {}
 
-  async function getFont(block) {
+  async function getFont(block, pageNum, previewText = '') {
+    const embedded = getEmbeddedFontData(pageNum, block.fontResource, block.fontName)
+    if (embedded?.bytes?.byteLength) {
+      const embeddedKey = [
+        'embedded',
+        pageNum,
+        block.fontResource?.internalName || '',
+        embedded.name || block.fontName || 'font',
+        embedded.bytes.byteLength,
+      ].join(':')
+      try {
+        if (!fontCache[embeddedKey]) {
+          fontCache[embeddedKey] = await pdfDoc.embedFont(embedded.bytes, { subset: true })
+        }
+
+        // Verify this edited string can actually be encoded by the font. Many
+        // PDFs carry subset fonts that only contain the original glyphs.
+        if (previewText) {
+          if (!fontSupportsText(fontCache[embeddedKey], previewText)) {
+            throw new Error('Embedded font subset cannot render replacement text')
+          }
+          fontCache[embeddedKey].widthOfTextAtSize(previewText, Math.max((block.fontSize || 12) / BASE_SCALE, 1))
+          fontCache[embeddedKey].encodeText(previewText)
+        }
+        return fontCache[embeddedKey]
+      } catch (_) {
+        delete fontCache[embeddedKey]
+      }
+    }
+
     const key = pickStdFont(block)
     if (!fontCache[key]) fontCache[key] = await pdfDoc.embedFont(key)
     return fontCache[key]
@@ -316,9 +657,15 @@ export async function exportPdf(originalArrayBuffer, editLayers, pageCount, page
       : rgb(1,1,1)
 
     // 1. Whiteout all edited original positions
+    // Prefer each block's own locally-sampled color (matters on watermarks,
+    // seals, or any non-flat region) over the single flat page-wide color.
     for (const block of (layer.texts || [])) {
       if (!block.isEdited) continue
-      whiteoutBlock(page, block, pageH, bgRgb)
+      const localBgStr = blockBgs?.[i + 1]?.[block.id]
+      const blockRgb = localBgStr
+        ? parseRgbString(localBgStr.replace('rgb(', '').replace(')', ''))
+        : bgRgb
+      whiteoutBlock(page, block, pageH, blockRgb)
     }
 
     // 2. Draw replacement + new text
@@ -327,7 +674,7 @@ export async function exportPdf(originalArrayBuffer, editLayers, pageCount, page
       const safe  = sanitize(block.str)
       if (!safe)  continue
 
-      const font  = await getFont(block)
+      const font  = await getFont(block, i + 1, safe)
       const color = hexToRgb(block.color || '#000000')
       const { x, y, size } = canvasToPdf(block.x, block.y, block.fontSize, pageH, block.baselineOffset)
       const drawOptions = { x, y, size, font, color }
@@ -367,6 +714,15 @@ export async function exportPdf(originalArrayBuffer, editLayers, pageCount, page
   }
 
   return await pdfDoc.save()
+}
+
+export async function exportPdf(originalArrayBuffer, editLayers, pageCount, pageBgs, blockBgs) {
+  try {
+    return await exportVisualPdf(originalArrayBuffer, editLayers, pageCount, pageBgs)
+  } catch (err) {
+    console.warn('Visual PDF export failed; falling back to vector export.', err)
+    return await exportVectorPdf(originalArrayBuffer, editLayers, pageCount, pageBgs, blockBgs)
+  }
 }
 
 // ─── Standalone tool functions ─────────────────────────────────────────────
