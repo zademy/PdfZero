@@ -2,7 +2,7 @@
 
 # 📄PDFZero - Free Open-Source PDF Editor. 
 
-> Edit PDFs in your browser. No uploads. No task limits. No sign-up. Free.
+> Edit PDFs without uploading anywhere. No task limits. No sign-up. Free.
 
 [![Open Source](https://img.shields.io/badge/open%20source-yes-brightgreen)]()
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
