@@ -2,14 +2,12 @@ import React, {
   useRef,
   useState,
   useEffect,
-  useLayoutEffect,
   useCallback,
   useMemo,
 } from "react";
-import { Trash2, Copy, Wand2, Languages, Loader2, Check } from "lucide-react";
+import { Trash2, Copy, Wand2 } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePdfStore } from "../../store/pdfStore.js";
-import { translateText } from "../../lib/translation.js";
 import styles from "./TextBlock.module.css";
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -456,82 +454,12 @@ export default function TextBlock({
 // Button sizing follows Apple/Google's ~40px minimum touch-target guidance —
 // the previous 26px-tall buttons with 12px icons were comfortable with a
 // mouse cursor but too small to tap reliably with a finger.
-export function TextContextToolbar({
-  block,
-  pageNum,
-  pos,
-  onEdit,
-  isExtracted = false,
-}) {
-  const {
-    removeTextBlock,
-    updateTextBlock,
-    commitExtractedEdit,
-    setSelectedElement,
-  } = usePdfStore();
-  const [translate, setTranslate] = useState({ phase: "idle", draft: "" });
-  const translating = translate.phase === "loading";
-  const toolbarRef = useRef(null);
-  const [popoverShift, setPopoverShift] = useState(0);
-
-  // Keep the preview popover inside the viewport: when the toolbar sits far
-  // right (mobile, or right-edge blocks), shift the popover left by the
-  // amount it would overflow.
-  useLayoutEffect(() => {
-    if (translate.phase !== "preview" || !toolbarRef.current) return;
-    const rect = toolbarRef.current.getBoundingClientRect();
-    const vw = window.innerWidth;
-    const width = Math.min(320, vw * 0.78);
-    setPopoverShift(Math.min(0, vw - 16 - width - rect.left));
-  }, [translate.phase]);
-
-  const startTranslate = async () => {
-    if (translating) return;
-    setTranslate({ phase: "loading", draft: "" });
-    const result = await translateText(block.str);
-    if (!result.ok) {
-      setTranslate({ phase: "idle", draft: "" });
-      if (result.code === "EMPTY_TEXT") toast(result.message, { icon: "🚫" });
-      else toast.error(result.message);
-      return;
-    }
-    setTranslate({ phase: "preview", draft: result.translated });
-  };
-
-  const applyTranslation = () => {
-    if (translate.phase !== "preview") return;
-    const draft = translate.draft.trim();
-    if (!draft) return;
-    if (block.isEdited && block.originalId) {
-      // Re-translating a committed edit: re-commit against the original block
-      // identity so the existing edit updates in place instead of stacking.
-      commitExtractedEdit(
-        pageNum,
-        {
-          ...block,
-          id: block.originalId,
-          str: block.originalStr ?? block.str,
-          x: block.originalX ?? block.x,
-          y: block.originalY ?? block.y,
-          width: block.originalWidth ?? block.width,
-          height: block.originalHeight ?? block.height,
-        },
-        draft,
-      );
-    } else if (isExtracted) {
-      commitExtractedEdit(pageNum, block, draft);
-    } else {
-      updateTextBlock(pageNum, block.id, { str: draft });
-    }
-    setTranslate({ phase: "idle", draft: "" });
-    toast.success("✓ Translated", { duration: 1200 });
-  };
-
-  const discardTranslation = () => setTranslate({ phase: "idle", draft: "" });
+export function TextContextToolbar({ block, pageNum, pos, onEdit }) {
+  const { removeTextBlock, updateTextBlock, setSelectedElement } =
+    usePdfStore();
 
   return (
     <div
-      ref={toolbarRef}
       style={{
         position: "absolute",
         left: pos.x,
@@ -556,12 +484,11 @@ export function TextContextToolbar({
       onClick={(e) => e.stopPropagation()}
     >
       {[
-        { label: "✏️ Edit", action: () => onEdit(), disabled: translating },
-        { separator: true },
+        { label: "✏️ Edit", action: () => onEdit() },
+        { label: null }, // separator
         {
           icon: <Copy size={16} />,
           title: "Duplicate",
-          disabled: translating,
           action: () => {
             const clone = {
               ...block,
@@ -577,28 +504,15 @@ export function TextContextToolbar({
           },
         },
         {
-          icon: translating ? (
-            <Loader2 size={16} className={styles.spin} />
-          ) : (
-            <Languages size={16} />
-          ),
-          label: translating ? "Translating…" : null,
-          title: translating ? "Translating…" : "Translate EN↔ES",
-          disabled: translating,
-          action: startTranslate,
-        },
-        {
           icon: <Wand2 size={16} />,
           title: "AI font match",
-          disabled: translating,
           action: () => toast("AI font match — v1.1", { icon: "✨" }),
         },
-        { separator: true },
+        { label: null }, // separator
         {
           icon: <Trash2 size={16} />,
           title: "Delete",
           danger: true,
-          disabled: translating,
           action: () => {
             removeTextBlock(pageNum, block.id);
             setSelectedElement(null, null);
@@ -606,7 +520,7 @@ export function TextContextToolbar({
           },
         },
       ].map((item, i) => {
-        if (item.separator)
+        if (item.label === null)
           return (
             <div
               key={i}
@@ -622,11 +536,10 @@ export function TextContextToolbar({
           <button
             key={i}
             title={item.title}
-            disabled={item.disabled}
             onMouseDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              if (!item.disabled) item.action();
+              item.action();
             }}
             style={{
               display: "flex",
@@ -641,122 +554,14 @@ export function TextContextToolbar({
               background: "transparent",
               color: item.danger ? "#f87171" : "#a1a1aa",
               fontSize: 14,
-              cursor: item.disabled ? "default" : "pointer",
+              cursor: "pointer",
               fontFamily: "var(--font-sans)",
-              opacity: item.disabled ? 0.45 : 1,
             }}
           >
-            {item.icon}
-            {item.label}
+            {item.label || item.icon}
           </button>
         );
       })}
-
-      {translate.phase === "preview" && (
-        <div
-          style={{
-            position: "absolute",
-            top: "calc(100% + 8px)",
-            left: popoverShift,
-            width: "min(320px, 78vw)",
-            background: "#18181b",
-            border: "1px solid rgba(255,255,255,0.15)",
-            borderRadius: 10,
-            padding: 10,
-            zIndex: 41,
-            boxShadow: "0 4px 24px rgba(0,0,0,0.6)",
-            whiteSpace: "normal",
-          }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <textarea
-            autoFocus
-            rows={Math.min(6, Math.max(2, translate.draft.split("\n").length))}
-            value={translate.draft}
-            onChange={(e) =>
-              setTranslate((t) => ({ ...t, draft: e.target.value }))
-            }
-            onKeyDown={(e) => {
-              e.stopPropagation();
-              if (e.key === "Escape") {
-                e.preventDefault();
-                discardTranslation();
-              }
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                applyTranslation();
-              }
-            }}
-            style={{
-              width: "100%",
-              boxSizing: "border-box",
-              display: "block",
-              background: "#0d0d0f",
-              color: "#f4f4f5",
-              border: "1px solid rgba(255,255,255,0.12)",
-              borderRadius: 7,
-              padding: "8px 10px",
-              fontSize: 13,
-              lineHeight: 1.4,
-              fontFamily: "var(--font-sans)",
-              resize: "vertical",
-              outline: "none",
-            }}
-          />
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 8,
-              marginTop: 8,
-            }}
-          >
-            <button
-              onClick={discardTranslation}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 5,
-                height: 32,
-                padding: "0 12px",
-                border: "1px solid rgba(255,255,255,0.15)",
-                borderRadius: 7,
-                background: "transparent",
-                color: "#a1a1aa",
-                fontSize: 13,
-                cursor: "pointer",
-                fontFamily: "var(--font-sans)",
-              }}
-            >
-              Discard
-            </button>
-            <button
-              onClick={applyTranslation}
-              disabled={!translate.draft.trim()}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 5,
-                height: 32,
-                padding: "0 14px",
-                border: "none",
-                borderRadius: 7,
-                background: "#e84545",
-                color: "white",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: translate.draft.trim() ? "pointer" : "default",
-                fontFamily: "var(--font-sans)",
-                opacity: translate.draft.trim() ? 1 : 0.45,
-              }}
-            >
-              <Check size={14} /> Apply
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

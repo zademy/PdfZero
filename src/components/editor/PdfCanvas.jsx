@@ -269,15 +269,11 @@ export default function PdfCanvas() {
   );
 
   // Selected block for context toolbar
-  const selectedExtracted =
-    selectedElement && selectedElementPage === currentPage
-      ? textItems.find((t) => t.id === selectedElement.id)
-      : null;
   const selectedBlock =
-    selectedExtracted ||
-    (selectedElement && selectedElementPage === currentPage
-      ? (layer.texts || []).find((t) => t.id === selectedElement.id)
-      : null);
+    selectedElement && selectedElementPage === currentPage
+      ? textItems.find((t) => t.id === selectedElement.id) ||
+        (layer.texts || []).find((t) => t.id === selectedElement.id)
+      : null;
 
   const isEditing = selectedBlock && editingId === selectedBlock?.id;
   const editedTextBlocks = (layer.texts || []).filter(
@@ -418,11 +414,9 @@ export default function PdfCanvas() {
             converted to scaled (on-screen) coordinates manually instead. */}
         {selectedBlock && !isEditing && (
           <TextContextToolbar
-            key={selectedBlock.id}
             block={selectedBlock}
             pageNum={currentPage}
             pos={{ x: selectedBlock.x * zoom, y: selectedBlock.y * zoom }}
-            isExtracted={Boolean(selectedExtracted)}
             onEdit={() => setEditingId(selectedBlock.id)}
             onClose={() => setSelectedElement(null, null)}
           />
