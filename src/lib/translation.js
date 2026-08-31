@@ -6,7 +6,24 @@
 
 export const GLM_API_URL =
   "https://api.z.ai/api/coding/paas/v4/chat/completions";
-export const GLM_MODEL = "glm-5.2";
+export const GLM_MODEL = "glm-5.3-flash";
+
+// GLM-5.3-Flash recommended request settings
+// (https://docs.z.ai/guides/vlm/glm-5.3-flash): temperature 1, top_p 0.95.
+// thinking.type ONLY supports "enabled" — this model forces thinking — with
+// thinking.clear_thinking kept false per the model page. reasoning_effort is
+// set to "low" (valid values: max/high/low): translation is a lightweight
+// task and "max" makes non-streaming page batches pend for minutes.
+const chatBody = (messages, maxTokens) => ({
+  model: GLM_MODEL,
+  messages,
+  thinking: { type: "enabled", clear_thinking: false },
+  reasoning_effort: "low",
+  temperature: 1,
+  top_p: 0.95,
+  stream: false,
+  ...(maxTokens ? { max_tokens: maxTokens } : {}),
+});
 
 const SYSTEM_PROMPT = [
   "You are a precise translator.",
@@ -75,22 +92,20 @@ export async function condenseTranslations(items) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: GLM_MODEL,
-        messages: [
-          { role: "system", content: CONDENSE_SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: JSON.stringify(
-              list.map(({ id, text, budget }) => ({ id, text, budget })),
-            ),
-          },
-        ],
-        thinking: { type: "disabled" },
-        temperature: 0.2,
-        stream: false,
-        max_tokens: PAGE_MAX_TOKENS,
-      }),
+      body: JSON.stringify(
+        chatBody(
+          [
+            { role: "system", content: CONDENSE_SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: JSON.stringify(
+                list.map(({ id, text, budget }) => ({ id, text, budget })),
+              ),
+            },
+          ],
+          PAGE_MAX_TOKENS,
+        ),
+      ),
     });
   } catch (_) {
     return {
@@ -157,16 +172,12 @@ async function requestTranslation(raw, apiKey, systemPrompt) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: GLM_MODEL,
-        messages: [
+      body: JSON.stringify(
+        chatBody([
           { role: "system", content: systemPrompt },
           { role: "user", content: raw },
-        ],
-        thinking: { type: "disabled" },
-        temperature: 0.2,
-        stream: false,
-      }),
+        ]),
+      ),
     });
   } catch (_) {
     return {
@@ -300,17 +311,15 @@ export async function translatePage(entries) {
         "Content-Type": "application/json",
         Authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify({
-        model: GLM_MODEL,
-        messages: [
-          { role: "system", content: PAGE_SYSTEM_PROMPT },
-          { role: "user", content: JSON.stringify(payload) },
-        ],
-        thinking: { type: "disabled" },
-        temperature: 0.2,
-        stream: false,
-        max_tokens: PAGE_MAX_TOKENS,
-      }),
+      body: JSON.stringify(
+        chatBody(
+          [
+            { role: "system", content: PAGE_SYSTEM_PROMPT },
+            { role: "user", content: JSON.stringify(payload) },
+          ],
+          PAGE_MAX_TOKENS,
+        ),
+      ),
     });
   } catch (_) {
     return {

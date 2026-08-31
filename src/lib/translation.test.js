@@ -45,10 +45,13 @@ describe("translateText — request shape", () => {
     });
     const body = JSON.parse(init.body);
     expect(body.model).toBe(GLM_MODEL);
-    expect(body.model).toBe("glm-5.2");
-    expect(body.thinking).toEqual({ type: "disabled" });
+    expect(body.model).toBe("glm-5.3-flash");
+    // GLM-5.3-Flash recommended settings (docs.z.ai/guides/vlm/glm-5.3-flash)
+    expect(body.thinking).toEqual({ type: "enabled", clear_thinking: false });
+    expect(body.reasoning_effort).toBe("low");
     expect(body.stream).toBe(false);
-    expect(body.temperature).toBe(0.2);
+    expect(body.temperature).toBe(1);
+    expect(body.top_p).toBe(0.95);
   });
 
   it("uses a system prompt with auto-direction EN↔ES, translation-only output and line-break preservation", async () => {
@@ -243,9 +246,11 @@ describe("translatePage — batch", () => {
     expect(url).toBe(GLM_API_URL);
     const body = JSON.parse(init.body);
     expect(body.model).toBe(GLM_MODEL);
-    expect(body.thinking).toEqual({ type: "disabled" });
+    expect(body.thinking).toEqual({ type: "enabled", clear_thinking: false });
+    expect(body.reasoning_effort).toBe("low");
     expect(body.stream).toBe(false);
-    expect(body.temperature).toBe(0.2);
+    expect(body.temperature).toBe(1);
+    expect(body.top_p).toBe(0.95);
     expect(body.max_tokens).toBeGreaterThanOrEqual(8192);
     expect(body.messages[0].role).toBe("system");
     expect(body.messages[0].content).toMatch(/JSON/i);
