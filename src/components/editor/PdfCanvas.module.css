@@ -4,7 +4,7 @@
   align-items: center;
   padding: 28px 32px;
   gap: 16px;
-  min-width: max-content;  /* prevent horizontal squishing */
+  min-width: max-content; /* prevent horizontal squishing */
 }
 
 .pageLabel {
@@ -20,14 +20,16 @@
   background: white;
   border-radius: 2px;
   box-shadow:
-    0 0 0 1px rgba(0,0,0,0.08),
-    0 4px 24px rgba(0,0,0,0.55),
-    0 1px 4px  rgba(0,0,0,0.3);
-  overflow: visible;   /* allow ctx toolbar to pop above */
+    0 0 0 1px rgba(0, 0, 0, 0.08),
+    0 4px 24px rgba(0, 0, 0, 0.55),
+    0 1px 4px rgba(0, 0, 0, 0.3);
+  overflow: visible; /* allow ctx toolbar to pop above */
   cursor: default;
 }
 
-.cursorText { cursor: text; }
+.cursorText {
+  cursor: text;
+}
 
 /* Canvas fills the container exactly */
 .canvas {
@@ -41,7 +43,7 @@
 .renderingOverlay {
   position: absolute;
   inset: 0;
-  background: rgba(255,255,255,0.6);
+  background: rgba(255, 255, 255, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;

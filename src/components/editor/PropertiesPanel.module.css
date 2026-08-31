@@ -31,7 +31,11 @@
   gap: 6px;
 }
 
-.lbl { font-size: 11px; color: var(--tx-2); flex-shrink: 0; }
+.lbl {
+  font-size: 11px;
+  color: var(--tx-2);
+  flex-shrink: 0;
+}
 
 .val {
   font-size: 11px;
@@ -96,7 +100,7 @@
   border-radius: var(--r-sm);
   padding: 5px 8px;
   margin-bottom: 10px;
-  border: 1px solid rgba(16,185,129,0.2);
+  border: 1px solid rgba(16, 185, 129, 0.2);
   flex-wrap: wrap;
 }
 
@@ -152,7 +156,9 @@
   color: var(--tx-2);
   background: transparent;
   cursor: pointer;
-  transition: background var(--t-fast), color var(--t-fast);
+  transition:
+    background var(--t-fast),
+    color var(--t-fast);
   font-family: var(--font-sans);
   border: none;
   text-align: left;

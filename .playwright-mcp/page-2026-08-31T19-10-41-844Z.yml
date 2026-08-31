@@ -1,0 +1,144 @@
+- generic [ref=f1e3]:
+  - navigation [ref=f1e4]:
+    - generic [ref=f1e5]:
+      - link "PDFZero beta" [ref=f1e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f1e11]: PDFZero
+        - generic [ref=f1e12]: beta
+      - generic [ref=f1e13]:
+        - link "Editor" [ref=f1e14] [cursor=pointer]:
+          - /url: /editor
+        - link "All Tools" [ref=f1e15] [cursor=pointer]:
+          - /url: /tools
+    - generic [ref=f1e16]:
+      - generic [ref=f1e17]: 100% local processing
+      - link "GitHub Star" [ref=f1e20] [cursor=pointer]:
+        - /url: https://github.com/bevinkatti/pdfzero
+        - generic [ref=f1e24]: GitHub
+        - generic [ref=f1e25]: Star
+  - generic [ref=f1e28]:
+    - generic [ref=f1e29] [cursor=pointer]:
+      - button "Choose File" [ref=f1e30]
+      - generic [ref=f1e34]: Open PDF
+    - generic [ref=f1e36]:
+      - button "Select & edit text" [ref=f1e37] [cursor=pointer]
+      - button "Add text box" [ref=f1e40] [cursor=pointer]
+      - button "Add image" [ref=f1e43] [cursor=pointer]
+      - button "Draw" [ref=f1e48] [cursor=pointer]
+      - button "Shape" [ref=f1e52] [cursor=pointer]
+      - button "Sign" [ref=f1e55] [cursor=pointer]
+      - button "Highlight" [ref=f1e58] [cursor=pointer]
+      - button "Redact" [ref=f1e62] [cursor=pointer]
+    - combobox "Font family" [ref=f1e69] [cursor=pointer]:
+      - option "Arial" [selected]
+      - option "Helvetica"
+      - option "Times New Roman"
+      - option "Georgia"
+      - option "Courier New"
+      - option "Verdana"
+      - option "Tahoma"
+      - option "Trebuchet MS"
+      - option "Calibri"
+      - option "Cambria"
+      - option "Garamond"
+      - option "Palatino"
+    - spinbutton "Font size" [ref=f1e70]: "24"
+    - button "Bold" [ref=f1e71] [cursor=pointer]
+    - button "Italic" [ref=f1e74] [cursor=pointer]
+    - button "Underline" [ref=f1e77] [cursor=pointer]
+    - textbox "Text color" [ref=f1e81] [cursor=pointer]: "#151515"
+    - button "Undo" [ref=f1e83] [cursor=pointer]
+    - button "Redo" [ref=f1e87] [cursor=pointer]
+    - button "Zoom out" [ref=f1e92] [cursor=pointer]
+    - generic [ref=f1e96]: 100%
+    - button "Zoom in" [ref=f1e97] [cursor=pointer]
+    - button "OCR" [ref=f1e101] [cursor=pointer]
+    - button "AI fix" [ref=f1e107] [cursor=pointer]
+    - button "Download PDF" [ref=f1e112] [cursor=pointer]
+  - generic [ref=f1e116]:
+    - complementary [ref=f1e137]:
+      - generic [ref=f1e138]:
+        - generic [ref=f1e139]:
+          - generic [ref=f1e140]: Pages
+          - generic [ref=f1e141]: "2"
+        - generic [ref=f1e142]:
+          - generic [ref=f1e143] [cursor=pointer]:
+            - img "Page 1" [ref=f1e144]
+            - generic [ref=f1e145]: "1"
+            - button "Page 1 options" [ref=f1e146]
+          - generic [ref=f1e151] [cursor=pointer]:
+            - img "Page 2" [ref=f1e152]
+            - generic [ref=f1e153]: "2"
+            - button "Page 2 options" [ref=f1e154]
+        - button "Add blank page" [ref=f1e391] [cursor=pointer]
+    - main [ref=f1e393]:
+      - generic [ref=f1e483]:
+        - generic [ref=f1e484]: Page 1 / 2 · 100%
+        - generic [ref=f1e485]:
+          - generic [ref=f1e486]:
+            - generic "Double-click to edit" [ref=f1e488]: Hello world, this is a translation test.
+            - generic "Double-click to edit" [ref=f1e489]: Good morning everyone.
+          - generic [ref=f1e490]:
+            - button "✏️ Edit" [ref=f1e491] [cursor=pointer]
+            - button "Duplicate" [ref=f1e493] [cursor=pointer]
+            - button "AI font match" [ref=f1e498] [cursor=pointer]
+            - button "Delete" [ref=f1e503] [cursor=pointer]
+    - complementary [ref=f1e399]:
+      - generic [ref=f1e400]:
+        - generic [ref=f1e401]:
+          - generic [ref=f1e402]: Document
+          - generic [ref=f1e405]:
+            - generic [ref=f1e406]: Pages
+            - generic [ref=f1e407]: "2"
+          - generic [ref=f1e408]:
+            - generic [ref=f1e409]: Edits
+            - generic [ref=f1e410]: "0"
+          - generic [ref=f1e411]:
+            - generic [ref=f1e412]: File
+            - generic [ref=f1e413]: translate-test.pdf
+        - generic [ref=f1e414]:
+          - generic [ref=f1e415]: Selection
+          - generic [ref=f1e420]:
+            - text: Helvetica
+            - generic [ref=f1e513]: PDF original
+          - generic [ref=f1e514]: Hello world, this is a translation test.
+          - generic [ref=f1e515]:
+            - generic [ref=f1e516]: Font
+            - combobox [ref=f1e517]:
+              - option "Helvetica" [selected]
+              - option "Times New Roman"
+              - option "Times Roman"
+              - option "Courier New"
+              - option "Courier"
+              - option "Georgia"
+              - option "Arial"
+          - generic [ref=f1e518]:
+            - generic [ref=f1e519]: Size
+            - spinbutton [ref=f1e520]: "24"
+          - generic [ref=f1e521]:
+            - generic [ref=f1e522]: Color
+            - generic [ref=f1e523]:
+              - textbox [ref=f1e524] [cursor=pointer]: "#151515"
+              - generic [ref=f1e525]: "#151515"
+          - generic [ref=f1e526]:
+            - generic [ref=f1e527]: X
+            - generic [ref=f1e528]: "108"
+          - generic [ref=f1e529]:
+            - generic [ref=f1e530]: "Y"
+            - generic [ref=f1e531]: "121"
+        - generic [ref=f1e421]:
+          - generic [ref=f1e422]: Actions
+          - generic [ref=f1e426]:
+            - button "Add watermark" [ref=f1e427] [cursor=pointer]
+            - button "Redact content" [ref=f1e431] [cursor=pointer]
+            - button "Password protect" [ref=f1e437] [cursor=pointer]
+        - generic [ref=f1e441]:
+          - generic [ref=f1e442]: Export as
+          - generic [ref=f1e443]:
+            - button "📄 Word (.docx)" [ref=f1e444] [cursor=pointer]
+            - button "🖼 Images (PNG)" [ref=f1e445] [cursor=pointer]
+            - button "📋 Plain text" [ref=f1e446] [cursor=pointer]
+  - generic [ref=f1e447]:
+    - generic [ref=f1e448]: 📄 translate-test.pdf
+    - generic [ref=f1e449]: Page 1 of 2
+    - generic [ref=f1e450]: Processed locally — never uploaded

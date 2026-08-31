@@ -1,0 +1,70 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - link "PDFZero beta" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e11]: PDFZero
+        - generic [ref=e12]: beta
+      - generic [ref=e13]:
+        - link "Editor" [ref=e14] [cursor=pointer]:
+          - /url: /editor
+        - link "All Tools" [ref=e15] [cursor=pointer]:
+          - /url: /tools
+    - generic [ref=e16]:
+      - generic [ref=e17]: 100% local processing
+      - link "GitHub Star" [ref=e20] [cursor=pointer]:
+        - /url: https://github.com/bevinkatti/pdfzero
+        - generic [ref=e24]: GitHub
+        - generic [ref=e25]: Star
+  - generic [ref=e28]:
+    - generic [ref=e29] [cursor=pointer]:
+      - button "Choose File" [ref=e30]
+      - generic [ref=e34]: Open PDF
+    - generic [ref=e36]:
+      - button "Select & edit text" [ref=e37] [cursor=pointer]
+      - button "Add text box" [ref=e40] [cursor=pointer]
+      - button "Add image" [ref=e43] [cursor=pointer]
+      - button "Draw" [ref=e48] [cursor=pointer]
+      - button "Shape" [ref=e52] [cursor=pointer]
+      - button "Sign" [ref=e55] [cursor=pointer]
+      - button "Highlight" [ref=e58] [cursor=pointer]
+      - button "Redact" [ref=e62] [cursor=pointer]
+    - combobox "Font family" [disabled] [ref=e69]:
+      - option "Arial" [selected]
+      - option "Helvetica"
+      - option "Times New Roman"
+      - option "Georgia"
+      - option "Courier New"
+      - option "Verdana"
+      - option "Tahoma"
+      - option "Trebuchet MS"
+      - option "Calibri"
+      - option "Cambria"
+      - option "Garamond"
+      - option "Palatino"
+    - spinbutton "Font size" [disabled] [ref=e70]: "12"
+    - button "Bold" [disabled] [ref=e71]
+    - button "Italic" [disabled] [ref=e74]
+    - button "Underline" [disabled] [ref=e77]
+    - textbox "Text color" [disabled] [ref=e81]: "#000000"
+    - button "Undo" [ref=e83] [cursor=pointer]
+    - button "Redo" [ref=e87] [cursor=pointer]
+    - button "Zoom out" [ref=e92] [cursor=pointer]
+    - generic [ref=e96]: 100%
+    - button "Zoom in" [ref=e97] [cursor=pointer]
+    - button "OCR" [disabled] [ref=e101] [cursor=pointer]
+    - button "AI fix" [ref=e107] [cursor=pointer]
+    - button "Download PDF" [disabled] [ref=e112] [cursor=pointer]
+  - generic [ref=e118]:
+    - heading "Open a PDF to start editing" [level=2] [ref=e119]
+    - paragraph [ref=e120]: Files are processed entirely in your browser — never uploaded anywhere.
+    - generic [ref=e121] [cursor=pointer]:
+      - button "Choose File" [ref=e122]
+      - generic [ref=e127]: Drop your PDF here
+      - generic [ref=e128]: or click to browse
+      - generic [ref=e129]: Files are processed entirely in your browser — never uploaded anywhere
+      - generic [ref=e132]:
+        - generic [ref=e133]: PDF
+        - generic [ref=e134]: Scanned PDF
+        - generic [ref=e135]: PDF/A
+        - generic [ref=e136]: PDF forms

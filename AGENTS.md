@@ -7,7 +7,8 @@ Browser-only PDF editor: every operation (render, edit, OCR, export, encrypt) ru
 - `npm run dev` — Vite dev server (needs the COOP/COEP headers from `vite.config.js`; they are load-bearing for OCR workers).
 - `npm run build` / `npm run preview`
 - `npm run lint` — ESLint over `src/**/*.js` (JSX is excluded until `eslint-plugin-react` is adopted; see `eslint.config.js`). Run it after every change.
-- `npm test` — Vitest suite (`src/lib/*.test.js`). Run it after touching `src/lib/`.
+- `npm test` — Vitest suite (`src/lib/*.test.js`, `src/store/*.test.js`). Run it after touching `src/lib/` or the store.
+- `npm run format` — Prettier over the repo (config in `.prettierrc.json`). Formatting is canonical; never hand-align style.
 
 ## The two-engine rule
 

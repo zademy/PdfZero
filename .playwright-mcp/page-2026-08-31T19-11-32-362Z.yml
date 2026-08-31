@@ -1,0 +1,111 @@
+- generic [ref=f2e3]:
+  - navigation [ref=f2e4]:
+    - generic [ref=f2e5]:
+      - link "PDFZero beta" [ref=f2e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=f2e11]: PDFZero
+        - generic [ref=f2e12]: beta
+      - generic [ref=f2e13]:
+        - link "Editor" [ref=f2e14] [cursor=pointer]:
+          - /url: /editor
+        - link "All Tools" [ref=f2e15] [cursor=pointer]:
+          - /url: /tools
+    - generic [ref=f2e16]:
+      - generic [ref=f2e17]: 100% local processing
+      - link "GitHub Star" [ref=f2e20] [cursor=pointer]:
+        - /url: https://github.com/bevinkatti/pdfzero
+        - generic [ref=f2e24]: GitHub
+        - generic [ref=f2e25]: Star
+  - generic [ref=f2e28]:
+    - generic [ref=f2e29] [cursor=pointer]:
+      - button "Choose File" [ref=f2e30]
+      - generic [ref=f2e34]: Open PDF
+    - generic [ref=f2e36]:
+      - button "Select & edit text" [ref=f2e37] [cursor=pointer]
+      - button "Add text box" [ref=f2e40] [cursor=pointer]
+      - button "Add image" [ref=f2e43] [cursor=pointer]
+      - button "Draw" [ref=f2e48] [cursor=pointer]
+      - button "Shape" [ref=f2e52] [cursor=pointer]
+      - button "Sign" [ref=f2e55] [cursor=pointer]
+      - button "Highlight" [ref=f2e58] [cursor=pointer]
+      - button "Redact" [ref=f2e62] [cursor=pointer]
+    - combobox "Font family" [disabled] [ref=f2e69]:
+      - option "Arial" [selected]
+      - option "Helvetica"
+      - option "Times New Roman"
+      - option "Georgia"
+      - option "Courier New"
+      - option "Verdana"
+      - option "Tahoma"
+      - option "Trebuchet MS"
+      - option "Calibri"
+      - option "Cambria"
+      - option "Garamond"
+      - option "Palatino"
+    - spinbutton "Font size" [disabled] [ref=f2e70]: "12"
+    - button "Bold" [disabled] [ref=f2e71]
+    - button "Italic" [disabled] [ref=f2e74]
+    - button "Underline" [disabled] [ref=f2e77]
+    - textbox "Text color" [disabled] [ref=f2e81]: "#000000"
+    - button "Undo" [ref=f2e83] [cursor=pointer]
+    - button "Redo" [ref=f2e87] [cursor=pointer]
+    - button "Zoom out" [ref=f2e92] [cursor=pointer]
+    - generic [ref=f2e96]: 100%
+    - button "Zoom in" [ref=f2e97] [cursor=pointer]
+    - button "OCR" [ref=f2e101] [cursor=pointer]
+    - button "AI fix" [ref=f2e107] [cursor=pointer]
+    - button "Download PDF" [ref=f2e112] [cursor=pointer]
+  - generic [ref=f2e116]:
+    - complementary [ref=f2e117]:
+      - generic [ref=f2e118]:
+        - generic [ref=f2e119]:
+          - generic [ref=f2e120]: Pages
+          - generic [ref=f2e121]: "2"
+        - generic [ref=f2e122]:
+          - generic [ref=f2e123] [cursor=pointer]:
+            - img "Page 1" [ref=f2e124]
+            - generic [ref=f2e125]: "1"
+            - button "Page 1 options" [ref=f2e126]
+          - generic [ref=f2e131] [cursor=pointer]:
+            - img "Page 2" [ref=f2e132]
+            - generic [ref=f2e133]: "2"
+            - button "Page 2 options" [ref=f2e134]
+        - button "Add blank page" [ref=f2e139] [cursor=pointer]
+    - main [ref=f2e141]:
+      - generic [ref=f2e142]:
+        - generic [ref=f2e143]: Page 1 / 2 · 100%
+        - generic [ref=f2e145]:
+          - generic "Double-click to edit" [ref=f2e147]: Hello world, this is a translation test.
+          - generic "Double-click to edit" [ref=f2e148]: Good morning everyone.
+    - complementary [ref=f2e149]:
+      - generic [ref=f2e150]:
+        - generic [ref=f2e151]:
+          - generic [ref=f2e152]: Document
+          - generic [ref=f2e155]:
+            - generic [ref=f2e156]: Pages
+            - generic [ref=f2e157]: "2"
+          - generic [ref=f2e158]:
+            - generic [ref=f2e159]: Edits
+            - generic [ref=f2e160]: "0"
+          - generic [ref=f2e161]:
+            - generic [ref=f2e162]: File
+            - generic [ref=f2e163]: translate-test.pdf
+        - generic [ref=f2e164]:
+          - generic [ref=f2e165]: Selection
+          - generic [ref=f2e170]: Click any text in the PDF to select it, then double-click to edit
+        - generic [ref=f2e171]:
+          - generic [ref=f2e172]: Actions
+          - generic [ref=f2e176]:
+            - button "Add watermark" [ref=f2e177] [cursor=pointer]
+            - button "Redact content" [ref=f2e181] [cursor=pointer]
+            - button "Password protect" [ref=f2e187] [cursor=pointer]
+        - generic [ref=f2e191]:
+          - generic [ref=f2e192]: Export as
+          - generic [ref=f2e193]:
+            - button "📄 Word (.docx)" [ref=f2e194] [cursor=pointer]
+            - button "🖼 Images (PNG)" [ref=f2e195] [cursor=pointer]
+            - button "📋 Plain text" [ref=f2e196] [cursor=pointer]
+  - generic [ref=f2e197]:
+    - generic [ref=f2e198]: 📄 translate-test.pdf
+    - generic [ref=f2e199]: Page 1 of 2
+    - generic [ref=f2e200]: Processed locally — never uploaded

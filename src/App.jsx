@@ -1,10 +1,10 @@
-import React from 'react'
-import { Routes, Route } from 'react-router-dom'
-import { Toaster } from 'react-hot-toast'
-import { Analytics } from '@vercel/analytics/react'
-import Landing from './pages/Landing.jsx'
-import Editor from './pages/Editor.jsx'
-import Tools from './pages/Tools.jsx'
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import { Toaster } from "react-hot-toast";
+import { Analytics } from "@vercel/analytics/react";
+import Landing from "./pages/Landing.jsx";
+import Editor from "./pages/Editor.jsx";
+import Tools from "./pages/Tools.jsx";
 
 export default function App() {
   return (
@@ -19,18 +19,18 @@ export default function App() {
         position="bottom-center"
         toastOptions={{
           style: {
-            background: '#1e1e22',
-            color: '#f0f0f4',
-            border: '1px solid rgba(255,255,255,0.1)',
+            background: "#1e1e22",
+            color: "#f0f0f4",
+            border: "1px solid rgba(255,255,255,0.1)",
             fontFamily: "'DM Sans', sans-serif",
-            fontSize: '13px',
-            borderRadius: '8px',
+            fontSize: "13px",
+            borderRadius: "8px",
           },
-          success: { iconTheme: { primary: '#10b981', secondary: '#1e1e22' } },
-          error:   { iconTheme: { primary: '#e84545', secondary: '#1e1e22' } },
+          success: { iconTheme: { primary: "#10b981", secondary: "#1e1e22" } },
+          error: { iconTheme: { primary: "#e84545", secondary: "#1e1e22" } },
         }}
       />
       <Analytics />
     </>
-  )
+  );
 }

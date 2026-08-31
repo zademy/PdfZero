@@ -1,0 +1,276 @@
+- generic [ref=e3]:
+  - navigation [ref=e4]:
+    - generic [ref=e5]:
+      - link "PDFZero beta" [ref=e6] [cursor=pointer]:
+        - /url: /
+        - generic [ref=e11]: PDFZero
+        - generic [ref=e12]: beta
+      - generic [ref=e13]:
+        - link "Editor" [ref=e14] [cursor=pointer]:
+          - /url: /editor
+        - link "All Tools" [ref=e15] [cursor=pointer]:
+          - /url: /tools
+    - generic [ref=e16]:
+      - generic [ref=e17]: 100% local processing
+      - link "GitHub Star" [ref=e20] [cursor=pointer]:
+        - /url: https://github.com/bevinkatti/pdfzero
+        - generic [ref=e24]: GitHub
+        - generic [ref=e25]: Star
+  - generic [ref=e28]:
+    - generic [ref=e29] [cursor=pointer]:
+      - button "Choose File" [ref=e30]
+      - generic [ref=e34]: Open PDF
+    - generic [ref=e36]:
+      - button "Select & edit text" [ref=e37] [cursor=pointer]
+      - button "Add text box" [ref=e40] [cursor=pointer]
+      - button "Add image" [ref=e43] [cursor=pointer]
+      - button "Draw" [ref=e48] [cursor=pointer]
+      - button "Shape" [ref=e52] [cursor=pointer]
+      - button "Sign" [ref=e55] [cursor=pointer]
+      - button "Highlight" [ref=e58] [cursor=pointer]
+      - button "Redact" [ref=e62] [cursor=pointer]
+    - combobox "Font family" [ref=e69] [cursor=pointer]:
+      - option "Arial"
+      - option "Helvetica"
+      - option "Times New Roman" [selected]
+      - option "Georgia"
+      - option "Courier New"
+      - option "Verdana"
+      - option "Tahoma"
+      - option "Trebuchet MS"
+      - option "Calibri"
+      - option "Cambria"
+      - option "Garamond"
+      - option "Palatino"
+    - spinbutton "Font size" [ref=e70]: "41"
+    - button "Bold" [ref=e71] [cursor=pointer]
+    - button "Italic" [ref=e74] [cursor=pointer]
+    - button "Underline" [ref=e77] [cursor=pointer]
+    - textbox "Text color" [ref=e81] [cursor=pointer]: "#484653"
+    - button "Undo" [ref=e83] [cursor=pointer]
+    - button "Redo" [ref=e87] [cursor=pointer]
+    - button "Zoom out" [ref=e92] [cursor=pointer]
+    - generic [ref=e96]: 100%
+    - button "Zoom in" [ref=e97] [cursor=pointer]
+    - button "OCR" [ref=e101] [cursor=pointer]
+    - button "AI fix" [ref=e107] [cursor=pointer]
+    - button "Download PDF" [ref=e112] [cursor=pointer]
+  - generic [ref=e116]:
+    - complementary [ref=e137]:
+      - generic [ref=e138]:
+        - generic [ref=e139]:
+          - generic [ref=e140]: Pages
+          - generic [ref=e141]: "31"
+        - generic [ref=e142]:
+          - generic [ref=e143] [cursor=pointer]:
+            - img "Page 1" [ref=e144]
+            - generic [ref=e145]: "1"
+            - button "Page 1 options" [ref=e146]
+          - generic [ref=e151] [cursor=pointer]:
+            - img "Page 2" [ref=e152]
+            - generic [ref=e153]: "2"
+            - button "Page 2 options" [ref=e154]
+          - generic [ref=e159] [cursor=pointer]:
+            - img "Page 3" [ref=e160]
+            - generic [ref=e161]: "3"
+            - button "Page 3 options" [ref=e162]
+          - generic [ref=e167] [cursor=pointer]:
+            - img "Page 4" [ref=e168]
+            - generic [ref=e169]: "4"
+            - button "Page 4 options" [ref=e170]
+          - generic [ref=e175] [cursor=pointer]:
+            - img "Page 5" [ref=e176]
+            - generic [ref=e177]: "5"
+            - button "Page 5 options" [ref=e178]
+          - generic [ref=e183] [cursor=pointer]:
+            - img "Page 6" [ref=e184]
+            - generic [ref=e185]: "6"
+            - button "Page 6 options" [ref=e186]
+          - generic [ref=e191] [cursor=pointer]:
+            - img "Page 7" [ref=e192]
+            - generic [ref=e193]: "7"
+            - button "Page 7 options" [ref=e194]
+          - generic [ref=e199] [cursor=pointer]:
+            - img "Page 8" [ref=e200]
+            - generic [ref=e201]: "8"
+            - button "Page 8 options" [ref=e202]
+          - generic [ref=e207] [cursor=pointer]:
+            - img "Page 9" [ref=e208]
+            - generic [ref=e209]: "9"
+            - button "Page 9 options" [ref=e210]
+          - generic [ref=e215] [cursor=pointer]:
+            - img "Page 10" [ref=e216]
+            - generic [ref=e217]: "10"
+            - button "Page 10 options" [ref=e218]
+          - generic [ref=e223] [cursor=pointer]:
+            - img "Page 11" [ref=e224]
+            - generic [ref=e225]: "11"
+            - button "Page 11 options" [ref=e226]
+          - generic [ref=e231] [cursor=pointer]:
+            - img "Page 12" [ref=e232]
+            - generic [ref=e233]: "12"
+            - button "Page 12 options" [ref=e234]
+          - generic [ref=e239] [cursor=pointer]:
+            - img "Page 13" [ref=e240]
+            - generic [ref=e241]: "13"
+            - button "Page 13 options" [ref=e242]
+          - generic [ref=e247] [cursor=pointer]:
+            - img "Page 14" [ref=e248]
+            - generic [ref=e249]: "14"
+            - button "Page 14 options" [ref=e250]
+          - generic [ref=e255] [cursor=pointer]:
+            - img "Page 15" [ref=e256]
+            - generic [ref=e257]: "15"
+            - button "Page 15 options" [ref=e258]
+          - generic [ref=e263] [cursor=pointer]:
+            - img "Page 16" [ref=e264]
+            - generic [ref=e265]: "16"
+            - button "Page 16 options" [ref=e266]
+          - generic [ref=e271] [cursor=pointer]:
+            - img "Page 17" [ref=e272]
+            - generic [ref=e273]: "17"
+            - button "Page 17 options" [ref=e274]
+          - generic [ref=e279] [cursor=pointer]:
+            - img "Page 18" [ref=e280]
+            - generic [ref=e281]: "18"
+            - button "Page 18 options" [ref=e282]
+          - generic [ref=e287] [cursor=pointer]:
+            - img "Page 19" [ref=e288]
+            - generic [ref=e289]: "19"
+            - button "Page 19 options" [ref=e290]
+          - generic [ref=e295] [cursor=pointer]:
+            - img "Page 20" [ref=e296]
+            - generic [ref=e297]: "20"
+            - button "Page 20 options" [ref=e298]
+          - generic [ref=e303] [cursor=pointer]:
+            - img "Page 21" [ref=e304]
+            - generic [ref=e305]: "21"
+            - button "Page 21 options" [ref=e306]
+          - generic [ref=e311] [cursor=pointer]:
+            - img "Page 22" [ref=e312]
+            - generic [ref=e313]: "22"
+            - button "Page 22 options" [ref=e314]
+          - generic [ref=e319] [cursor=pointer]:
+            - img "Page 23" [ref=e320]
+            - generic [ref=e321]: "23"
+            - button "Page 23 options" [ref=e322]
+          - generic [ref=e327] [cursor=pointer]:
+            - img "Page 24" [ref=e328]
+            - generic [ref=e329]: "24"
+            - button "Page 24 options" [ref=e330]
+          - generic [ref=e335] [cursor=pointer]:
+            - img "Page 25" [ref=e336]
+            - generic [ref=e337]: "25"
+            - button "Page 25 options" [ref=e338]
+          - generic [ref=e343] [cursor=pointer]:
+            - img "Page 26" [ref=e344]
+            - generic [ref=e345]: "26"
+            - button "Page 26 options" [ref=e346]
+          - generic [ref=e351] [cursor=pointer]:
+            - img "Page 27" [ref=e352]
+            - generic [ref=e353]: "27"
+            - button "Page 27 options" [ref=e354]
+          - generic [ref=e359] [cursor=pointer]:
+            - img "Page 28" [ref=e360]
+            - generic [ref=e361]: "28"
+            - button "Page 28 options" [ref=e362]
+          - generic [ref=e367] [cursor=pointer]:
+            - img "Page 29" [ref=e368]
+            - generic [ref=e369]: "29"
+            - button "Page 29 options" [ref=e370]
+          - generic [ref=e375] [cursor=pointer]:
+            - img "Page 30" [ref=e376]
+            - generic [ref=e377]: "30"
+            - button "Page 30 options" [ref=e378]
+          - generic [ref=e383] [cursor=pointer]:
+            - img "Page 31" [ref=e384]
+            - generic [ref=e385]: "31"
+            - button "Page 31 options" [ref=e386]
+        - button "Add blank page" [ref=e391] [cursor=pointer]
+    - main [ref=e393]:
+      - generic [ref=e394]:
+        - generic [ref=e395]: Page 2 / 31 · 100%
+        - generic [ref=e396]:
+          - generic [ref=e397]:
+            - generic "Double-click to edit" [ref=e399]: Praise for
+            - generic "Double-click to edit" [ref=e400]: AI Engineering
+            - generic "Double-click to edit" [ref=e401]: This book offers a comprehensive, well-structured guide to the
+            - generic "Double-click to edit" [ref=e402]: essential aspects of building generative AI systems. A must-read for
+            - generic "Double-click to edit" [ref=e403]: any professional looking to scale AI across the enterprise.
+            - generic "Double-click to edit" [ref=e404]: —Vittorio Cretella, former global CIO, P&G and Mars
+            - generic "Double-click to edit" [ref=e405]: Chip Huyen gets generative AI. On top of that, she is a remarkable
+            - generic "Double-click to edit" [ref=e406]: teacher and writer whose work has been instrumental in helping
+            - generic "Double-click to edit" [ref=e407]: teams bring AI into production. Drawing on her deep expertise, AI
+            - generic "Double-click to edit" [ref=e408]: Engineering serves as a comprehensive and holistic guide,
+            - generic "Double-click to edit" [ref=e409]: masterfully detailing everything required to design and deploy
+            - generic "Double-click to edit" [ref=e410]: generative AI applications in production.
+            - generic "Double-click to edit" [ref=e411]: —Luke Metz, cocreator of ChatGPT, former research
+            - generic "Double-click to edit" [ref=e412]: manager at OpenAI
+            - generic "Double-click to edit" [ref=e413]: Every AI engineer building real-world applications should read this
+            - generic "Double-click to edit" [ref=e414]: book. It’s a vital guide to end-to-end AI system design, from model
+            - generic "Double-click to edit" [ref=e415]: development and evaluation to large-scale deployment and operation.
+            - generic "Double-click to edit" [ref=e416]: —Andrei Lopatenko, Director Search and AI, Neuron7
+          - generic [ref=e471]:
+            - button "✏️ Edit" [ref=e472] [cursor=pointer]
+            - button "Duplicate" [ref=e474] [cursor=pointer]
+            - button "AI font match" [ref=e479] [cursor=pointer]
+            - button "Delete" [ref=e484] [cursor=pointer]
+    - complementary [ref=e417]:
+      - generic [ref=e418]:
+        - generic [ref=e419]:
+          - generic [ref=e420]: Document
+          - generic [ref=e423]:
+            - generic [ref=e424]: Pages
+            - generic [ref=e425]: "31"
+          - generic [ref=e426]:
+            - generic [ref=e427]: Edits
+            - generic [ref=e428]: "0"
+          - generic [ref=e429]:
+            - generic [ref=e430]: File
+            - generic [ref=e431]: AI_Engineering_Building_Applications_-_Chip_Huyen.pdf
+        - generic [ref=e432]:
+          - generic [ref=e433]: Selection
+          - generic [ref=e438]:
+            - text: LiberationSerif
+            - generic [ref=e494]: PDF original
+          - generic [ref=e495]: Praise for
+          - generic [ref=e496]:
+            - generic [ref=e497]: Font
+            - combobox [ref=e498]:
+              - option "Helvetica" [selected]
+              - option "Times New Roman"
+              - option "Times Roman"
+              - option "Courier New"
+              - option "Courier"
+              - option "Georgia"
+              - option "Arial"
+          - generic [ref=e499]:
+            - generic [ref=e500]: Size
+            - spinbutton [ref=e501]: "41"
+          - generic [ref=e502]:
+            - generic [ref=e503]: Color
+            - generic [ref=e504]:
+              - textbox [ref=e505] [cursor=pointer]: "#484653"
+              - generic [ref=e506]: "#484653"
+          - generic [ref=e507]:
+            - generic [ref=e508]: X
+            - generic [ref=e509]: "115"
+          - generic [ref=e510]:
+            - generic [ref=e511]: "Y"
+            - generic [ref=e512]: "116"
+        - generic [ref=e439]:
+          - generic [ref=e440]: Actions
+          - generic [ref=e444]:
+            - button "Add watermark" [ref=e445] [cursor=pointer]
+            - button "Redact content" [ref=e449] [cursor=pointer]
+            - button "Password protect" [ref=e455] [cursor=pointer]
+        - generic [ref=e459]:
+          - generic [ref=e460]: Export as
+          - generic [ref=e461]:
+            - button "📄 Word (.docx)" [ref=e462] [cursor=pointer]
+            - button "🖼 Images (PNG)" [ref=e463] [cursor=pointer]
+            - button "📋 Plain text" [ref=e464] [cursor=pointer]
+  - generic [ref=e465]:
+    - generic [ref=e466]: 📄 AI_Engineering_Building_Applications_-_Chip_Huyen.pdf
+    - generic [ref=e467]: Page 2 of 31
+    - generic [ref=e468]: Processed locally — never uploaded

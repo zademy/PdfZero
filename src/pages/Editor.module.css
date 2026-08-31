@@ -78,7 +78,7 @@
   font-size: 13px;
   color: var(--accent);
   background: var(--accent-bg);
-  border: 1px solid rgba(232,69,69,0.25);
+  border: 1px solid rgba(232, 69, 69, 0.25);
   padding: 7px 16px;
   border-radius: var(--r-sm);
   cursor: pointer;
@@ -86,7 +86,9 @@
   font-family: var(--font-sans);
 }
 
-.demoBtn:hover { background: var(--accent-bg2); }
+.demoBtn:hover {
+  background: var(--accent-bg2);
+}
 
 /* Status bar */
 .statusBar {
@@ -101,9 +103,17 @@
   gap: 16px;
 }
 
-.statusFile { display: flex; align-items: center; gap: 5px; }
+.statusFile {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
 
-.statusCenter { margin: 0 auto; font-family: var(--font-mono); color: var(--tx-4); }
+.statusCenter {
+  margin: 0 auto;
+  font-family: var(--font-mono);
+  color: var(--tx-4);
+}
 
 .statusRight {
   margin-left: auto;
@@ -132,11 +142,15 @@
   background: var(--bg-canvas);
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 .loadingSpinner {
   width: 32px;
   height: 32px;
-  border: 2.5px solid rgba(232,69,69,0.15);
+  border: 2.5px solid rgba(232, 69, 69, 0.15);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -168,7 +182,7 @@
     z-index: 60;
     background: var(--bg-panel);
     transition: transform 220ms ease;
-    box-shadow: 0 0 32px rgba(0,0,0,0.5);
+    box-shadow: 0 0 32px rgba(0, 0, 0, 0.5);
   }
 
   .leftPanel {
@@ -176,20 +190,24 @@
     border-right: 1px solid var(--brd);
     transform: translateX(-100%);
   }
-  .leftPanel.mobileOpen { transform: translateX(0); }
+  .leftPanel.mobileOpen {
+    transform: translateX(0);
+  }
 
   .rightPanel {
     right: 0;
     border-left: 1px solid var(--brd);
     transform: translateX(100%);
   }
-  .rightPanel.mobileOpen { transform: translateX(0); }
+  .rightPanel.mobileOpen {
+    transform: translateX(0);
+  }
 
   .backdrop {
     display: block;
     position: absolute;
     inset: 0;
-    background: rgba(0,0,0,0.55);
+    background: rgba(0, 0, 0, 0.55);
     z-index: 55;
     opacity: 0;
     pointer-events: none;
@@ -217,13 +235,31 @@
     cursor: pointer;
   }
 
-  .canvas { width: 100%; }
+  .canvas {
+    width: 100%;
+  }
 
-  .emptyState { padding: 20px; }
-  .emptyTitle { font-size: 18px; text-align: center; }
+  .emptyState {
+    padding: 20px;
+  }
+  .emptyTitle {
+    font-size: 18px;
+    text-align: center;
+  }
 
   /* Status bar: hide the long privacy sentence, keep just the dot + page count */
-  .statusRightText { display: none; }
-  .statusBar { padding: 5px 10px; gap: 8px; font-size: 10px; }
-  .statusFile { max-width: 40vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .statusRightText {
+    display: none;
+  }
+  .statusBar {
+    padding: 5px 10px;
+    gap: 8px;
+    font-size: 10px;
+  }
+  .statusFile {
+    max-width: 40vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }

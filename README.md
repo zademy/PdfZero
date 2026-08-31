@@ -1,16 +1,27 @@
 ![cover](public/demos/cover.png)
 
-# 📄PDFZero - Free Open-Source PDF Editor. 
+# 📄 PDFZero - Free Open-Source PDF Editor
+
+> [!WARNING]
+> **This is a community fork.** PDFZero was originally created by **[@bevinkatti](https://github.com/bevinkatti)** —
+> [bevinkatti/PdfZero](https://github.com/bevinkatti/PdfZero) (MIT License). All credit for the original idea,
+> implementation, and design belongs to him.
+>
+> Since the upstream repository is no longer actively maintained, this fork carries the project forward with
+> bug fixes, editing-fidelity improvements, and new features (including AI-powered EN↔ES page translation —
+> see [What's new in this fork](#whats-new-in-this-fork)). Please open issues and PRs **here**, not upstream.
 
 > Edit PDFs without uploading anywhere. No task limits. No sign-up. Free.
 
+[![Fork of bevinkatti/PdfZero](https://img.shields.io/badge/fork%20of-bevinkatti%2FPDFZero-yellow?logo=github)](https://github.com/bevinkatti/PdfZero)
 [![Open Source](https://img.shields.io/badge/open%20source-yes-brightgreen)]()
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
 [![Privacy First](https://img.shields.io/badge/privacy-100%25%20local-success)]()
 [![Offline Ready](https://img.shields.io/badge/offline-ready-blueviolet)]()
 [![Built with React](https://img.shields.io/badge/built%20with-React-61DAFB?logo=react&logoColor=white)]()
 [![PDF.js](https://img.shields.io/badge/PDF.js-Mozilla-orange)]()
 [![pdf-lib](https://img.shields.io/badge/pdf--lib-core-red)]()
+[![Tests](https://img.shields.io/badge/tests-Vitest-green)]()
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-pink.svg)]()
 
 ---  
@@ -21,14 +32,13 @@ Many PDF tools charge monthly, cap file sizes, or limit what you can do on free 
 
 ## Demo  
 ![demo](public/demos/demo.gif)  
-  
+
 ## 🌐 Try PDFZero Live
 
-🔗 **https://pdfzero-editor.vercel.app**  
+🔗 **https://pdfzero-editor.vercel.app** — original project's deployment (base app).
 Edit, organize, secure, and optimize PDFs directly in your browser - all FREE while keeping your files on your device.  
-  
 
----  
+---
 ---
 
 | Feature | Other PDF tools | **PDFZero** |
@@ -41,6 +51,7 @@ Edit, organize, secure, and optimize PDFs directly in your browser - all FREE wh
 | Open source | Rare | **MIT** |
 | OCR for scanned PDFs | Often paid | **Free** |
 | e-Sign PDFs | Often paid | **Free** |
+| Translate PDFs | Often paid | **Free (AI, opt-in)** |
 | Cost | Many plans charge monthly | **Free** |
 
 ---
@@ -51,7 +62,13 @@ Edit, organize, secure, and optimize PDFs directly in your browser - all FREE wh
 - **Edit existing PDF text** - click any text block, edit in-place, and auto-detect the original font
 - Add new text boxes anywhere on the page
 - Change font family, size, color, bold, and italic
-- Add, replace, and remove images
+- Add images and place them anywhere on the page
+- Sign documents with a signature pad
+
+### Translate
+- **AI page translation (English ↔ Spanish)** - one click from the editor toolbar translates the whole page in context, keeping terminology consistent across text blocks
+- Translated text is re-fitted to the original text-box geometry (measured widths, character budgets) so the page layout survives translation
+- Powered by [GLM-5.3-Flash](https://docs.z.ai/) via the Z.AI API — **opt-in** and requires your own API key (see [Getting Started](#getting-started))
 
 ### Organize
 - Merge multiple PDFs with drag-to-reorder
@@ -62,17 +79,19 @@ Edit, organize, secure, and optimize PDFs directly in your browser - all FREE wh
 
 ### Optimize
 - Compress PDF with browser-native object stream compression
+- Target-size compression with iterative quality reduction
 - PDF/A compliance check
 
 ### Secure
 - Password protect with AES-256
 - Remove existing passwords
 - Redact sensitive content permanently
-- Add text watermarks
+- Add text or image watermarks with live preview, tiling, and page targeting
 
 ### Smart
-- OCR for scanned and image PDFs with Tesseract.js, running offline
+- OCR for scanned and image PDFs with Tesseract.js, running 100% offline
 - AI font matching to keep text edits visually consistent
+- Per-block background color sampling so edits and whiteouts blend into watermarked or colored pages
 
 ---
 
@@ -83,23 +102,33 @@ Edit, organize, secure, and optimize PDFs directly in your browser - all FREE wh
 | [pdf-lib](https://pdf-lib.js.org/) | PDF creation, modification, export |
 | [PDF.js](https://mozilla.github.io/pdf.js/) | PDF rendering and text extraction |
 | [Tesseract.js](https://tesseract.projectnaptha.com/) | OCR for scanned PDFs |
+| [GLM-5.3-Flash (Z.AI)](https://docs.z.ai/) | EN↔ES AI translation (opt-in) |
 | [React](https://react.dev/) | UI framework |
 | [Zustand](https://zustand-demo.pmnd.rs/) | State management |
 | [Vite](https://vitejs.dev/) | Build tool |
 
-**Zero backend. Zero tracking. Zero analytics. 100% browser-native.**
+**All PDF processing is 100% browser-native — your files never leave your device.** The only network feature is the opt-in AI translation, which sends text snippets to the Z.AI API using your own key. Everything else works offline.
 
 ---
 
 ## Getting Started
 
 ```bash
-git clone https://github.com/bevinkatti/pdfzero.git
-cd pdfzero
+git clone https://github.com/zademy/PdfZero.git
+cd PdfZero
 npm install
-npm run dev
-npm run build
+
+# Optional — enable AI translation (EN↔ES)
+cp .env.example .env.local
+# then set VITE_GLM_API_KEY in .env.local (https://z.ai/manage-apikey/apikey-list)
+
+npm run dev      # Vite dev server
+npm run build    # production build
+npm test         # Vitest unit tests (src/lib/*.test.js)
+npm run lint     # ESLint
 ```
+
+> The dev server needs the COOP/COEP headers configured in `vite.config.js` — they are load-bearing for the OCR workers, so don't remove them.
 
 ---
 
@@ -108,12 +137,15 @@ npm run build
 ```text
 src/
   components/
-    editor/          # PdfCanvas, TextBlock, AnnotationLayer, Toolbars
+    editor/          # PdfCanvas, PageThumbnails, TextBlock, AnnotationLayer, Toolbars
     layout/          # Navbar
     ui/              # DropZone, shared components
-  lib/
-    pdfRenderer.js   # PDF.js wrapper - render pages, extract text
-    pdfExporter.js   # pdf-lib wrapper - export, merge, split, etc.
+  lib/               # pure logic, no React
+    pdfRenderer.js   # PDF.js wrapper — render pages, extract text, classify fonts
+    pdfExporter.js   # pdf-lib wrapper — export, merge, split, compress, watermark, encrypt
+    pdfTextLayout.js # text geometry: lines, runs, glyph fitting for overlays/exports
+    ocrEngine.js     # Tesseract.js lazy worker: OCR canvases offline
+    translation.js   # GLM translation client (EN↔ES), pure functions + tests
   pages/
     Landing.jsx      # Marketing landing page
     Editor.jsx       # Main PDF editor
@@ -126,7 +158,7 @@ src/
 
 ### Text editing architecture
 
-PDFZero uses a layered editing model:
+PDFZero uses a layered, non-destructive editing model:
 
 ```text
 PDF bytes
@@ -179,6 +211,19 @@ The browser-only implementation can be excellent for simple and moderately compl
 
 ---
 
+## What's new in this fork
+
+Changes on top of the original [bevinkatti/PdfZero](https://github.com/bevinkatti/PdfZero):
+
+- **AI page translation (EN↔ES)** — page-level contextual translation from the editor toolbar, with GLM-5.3-Flash, segment budgets, echo-retry parsing, and width-fitted re-layout so translated text stays inside the original boxes.
+- **V2 text layout & export fidelity** — improved line/run geometry, per-block background color detection (watermarks and colored regions no longer break whiteouts), and more accurate export placement.
+- **Editing accuracy fixes** — corrected color detection heuristics and export behavior for edge-case pages.
+- **Translation regression tests** — `src/lib/translation.test.js` (Vitest) covering separators, retries, and budget fitting.
+
+See the [commit history](https://github.com/zademy/PdfZero/commits) for the full list.
+
+---
+
 ## Roadmap
 
 - [x] PDF rendering and text extraction overlay
@@ -189,15 +234,18 @@ The browser-only implementation can be excellent for simple and moderately compl
 - [x] Watermark, rotate, page management
 - [x] Preserve richer original text-run metadata for export fitting
 - [x] Fit edited text back to the original run width during pdf-lib export
-- [ ] **v1.1** - OCR via Tesseract.js with searchable text layer
-- [ ] **v1.1** - Visual export diff for edited regions
-- [ ] **v1.1** - Packaged fallback font registry with width-vector matching
-- [ ] **v1.1** - Image add/replace/remove
-- [ ] **v1.1** - e-Sign with canvas signature pad
+- [x] OCR text extraction via Tesseract.js (offline)
+- [x] e-Sign with canvas signature pad
+- [x] Add images to pages
+- [x] AI page translation (EN↔ES) with box-fitted layout
+- [ ] **v1.2** - OCR searchable text layer embedded into the PDF (today OCR exports extracted text)
+- [ ] **v1.2** - Visual export diff for edited regions
+- [ ] **v1.2** - Packaged fallback font registry with width-vector matching
+- [ ] **v1.2** - Image replace/remove in the editor
 - [ ] **v1.2** - Paragraph grouping and multi-line reflow
-- [ ] **v1.2** - PDF to Word/DOCX export
-- [ ] **v1.2** - Form filling and flattening
-- [ ] **v1.2** - Batch processing
+- [ ] **v1.3** - PDF to Word/DOCX export
+- [ ] **v1.3** - Form filling and flattening
+- [ ] **v1.3** - Batch processing
 - [ ] **Advanced** - PDFium/MuPDF object-level text replacement
 - [ ] **Advanced** - Embedded font reuse and kerning-preserving export
 - [ ] **Advanced** - Background reconstruction by rendering pages with target text objects removed
@@ -206,19 +254,27 @@ The browser-only implementation can be excellent for simple and moderately compl
 
 ## Contributing
 
-PRs are very welcome. Please open an issue first for major changes.
+PRs are very welcome — against **this fork**. Please open an issue first for major changes.
 
 ```bash
 npm install
 npm run dev
+npm test
 ```
 
+---
+
+## Acknowledgments
+
+- **[bevinkatti](https://github.com/bevinkatti)** — original author of PDFZero. This fork exists because of his work.
+- The [PDF.js](https://mozilla.github.io/pdf.js/), [pdf-lib](https://pdf-lib.js.org/), and [Tesseract.js](https://tesseract.projectnaptha.com/) teams.
 
 ---
 
 ## License
 
-MIT Copyright PDFZero contributors 
-  
-  ---  
-If you find PDFZero useful, consider giving a ⭐.
+MIT — original project © **bevinkatti**; changes in this fork © [PdfZero contributors](https://github.com/zademy/PdfZero/graphs/contributors).
+The upstream README declares the project as MIT-licensed.
+
+---
+If you find PDFZero useful, consider giving a ⭐ to both [the original](https://github.com/bevinkatti/PdfZero) and this fork.

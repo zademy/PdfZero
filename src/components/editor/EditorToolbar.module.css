@@ -18,7 +18,9 @@
   margin: 0 4px;
 }
 
-.spacer { flex: 1; }
+.spacer {
+  flex: 1;
+}
 
 .toolGroup {
   display: flex;
@@ -38,11 +40,16 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background var(--t-fast), color var(--t-fast);
+  transition:
+    background var(--t-fast),
+    color var(--t-fast);
   flex-shrink: 0;
 }
 
-.toolBtn:hover { background: var(--bg-card); color: var(--tx-1); }
+.toolBtn:hover {
+  background: var(--bg-card);
+  color: var(--tx-1);
+}
 
 .toolBtn.active {
   background: var(--accent-bg2);
@@ -65,7 +72,10 @@
   font-family: var(--font-sans);
 }
 
-.fmtBtn:hover { background: var(--bg-card); color: var(--tx-1); }
+.fmtBtn:hover {
+  background: var(--bg-card);
+  color: var(--tx-1);
+}
 
 .select {
   height: 28px;
@@ -128,7 +138,11 @@
   font-family: var(--font-sans);
 }
 
-.aiBtn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-bg); }
+.aiBtn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
 
 .exportBtn {
   display: flex;
@@ -147,18 +161,33 @@
   font-family: var(--font-sans);
 }
 
-.aiBtnActive { border-color: var(--accent) !important; color: var(--accent) !important; }
+.aiBtnActive {
+  border-color: var(--accent) !important;
+  color: var(--accent) !important;
+}
 
-@keyframes spin { to { transform: rotate(360deg); } }
-.spin { animation: spin 0.8s linear infinite; }
-.exportBtn:hover { background: var(--accent-dim); }
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+.exportBtn:hover {
+  background: var(--accent-dim);
+}
 
 .fmtActive {
   background: var(--accent-bg2) !important;
   color: var(--accent) !important;
 }
 
-.fmtBtn:disabled, .toolBtn:disabled, .select:disabled, .numInput:disabled, .colorPicker:disabled {
+.fmtBtn:disabled,
+.toolBtn:disabled,
+.select:disabled,
+.numInput:disabled,
+.colorPicker:disabled {
   opacity: 0.35;
   cursor: not-allowed;
 }
@@ -167,17 +196,39 @@
    .mobileOnly  → hidden by default, shown ≤768px (drawer toggle buttons)
    .desktopOnly → visible by default, hidden ≤768px (inline format controls,
                   superseded by the Properties drawer on mobile)             */
-.mobileOnly { display: none; }
+.mobileOnly {
+  display: none;
+}
 
 @media (max-width: 768px) {
-  .mobileOnly  { display: flex; }
-  .desktopOnly { display: none; }
+  .mobileOnly {
+    display: flex;
+  }
+  .desktopOnly {
+    display: none;
+  }
 
-  .toolbar { padding: 6px 8px; gap: 3px; }
+  .toolbar {
+    padding: 6px 8px;
+    gap: 3px;
+  }
 
   /* Bigger touch targets on mobile — 30px is borderline too small to tap reliably */
-  .toolBtn { width: 36px; height: 34px; }
-  .aiBtn { padding: 7px 10px; font-size: 13px; }
-  .exportBtn { padding: 8px 12px; font-size: 13px; white-space: nowrap; }
-  .zoomLabel { min-width: 34px; font-size: 11px; }
+  .toolBtn {
+    width: 36px;
+    height: 34px;
+  }
+  .aiBtn {
+    padding: 7px 10px;
+    font-size: 13px;
+  }
+  .exportBtn {
+    padding: 8px 12px;
+    font-size: 13px;
+    white-space: nowrap;
+  }
+  .zoomLabel {
+    min-width: 34px;
+    font-size: 11px;
+  }
 }

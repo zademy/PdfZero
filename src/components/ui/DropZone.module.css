@@ -14,7 +14,8 @@
   text-align: center;
 }
 
-.zone:hover, .dragging {
+.zone:hover,
+.dragging {
   border-color: var(--accent);
   background: var(--accent-bg);
 }
@@ -32,7 +33,10 @@
   transition: all var(--t-mid);
 }
 
-.dragging .icon { color: var(--accent); background: var(--accent-bg2); }
+.dragging .icon {
+  color: var(--accent);
+  background: var(--accent-bg2);
+}
 
 .title {
   font-size: 17px;
@@ -45,7 +49,9 @@
   color: var(--tx-3);
 }
 
-.browse { color: var(--accent); }
+.browse {
+  color: var(--accent);
+}
 
 .note {
   display: flex;
@@ -92,5 +98,9 @@
   font-family: var(--font-sans);
 }
 
-.compact:hover { background: var(--accent-dim); }
-.compact.dragging { background: var(--accent-dim); }
+.compact:hover {
+  background: var(--accent-dim);
+}
+.compact.dragging {
+  background: var(--accent-dim);
+}
