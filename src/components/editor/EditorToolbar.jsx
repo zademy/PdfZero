@@ -26,7 +26,7 @@ import {
 import toast from "react-hot-toast";
 import { usePdfStore } from "../../store/pdfStore.js";
 import { exportPdf, downloadBytes } from "../../lib/pdfExporter.js";
-import { renderPage } from "../../lib/pdfRenderer.js";
+import { renderPage, classifyFont } from "../../lib/pdfRenderer.js";
 import { ocrCanvas } from "../../lib/ocrEngine.js";
 import {
   translatePage,
@@ -47,19 +47,26 @@ const TOOLS = [
   { id: "redact", icon: EyeOff, label: "Redact" },
 ];
 
+// Canonical export families: classifyFont() (used by the vector exporter)
+// collapses every font to one of these three base-14 families, so offering
+// web names like "Georgia" or "Arial" made the picker lie about what export
+// actually honors. Labels preview in their own typeface.
 const FONTS = [
-  "Arial",
-  "Helvetica",
-  "Times New Roman",
-  "Georgia",
-  "Courier New",
-  "Verdana",
-  "Tahoma",
-  "Trebuchet MS",
-  "Calibri",
-  "Cambria",
-  "Garamond",
-  "Palatino",
+  {
+    value: "Helvetica",
+    label: "Helvetica",
+    css: 'Helvetica, Arial, "Noto Sans", sans-serif',
+  },
+  {
+    value: "Times-Roman",
+    label: "Times",
+    css: '"Times New Roman", "Noto Serif", Times, serif',
+  },
+  {
+    value: "Courier",
+    label: "Courier",
+    css: '"Courier New", Courier, monospace',
+  },
 ];
 
 export default function EditorToolbar() {
@@ -280,8 +287,11 @@ export default function EditorToolbar() {
 
   // Mirror selected element's current formatting in the toolbar
   const sel = selectedElement;
-  const [fontFamily, setFontFamily] = useState("Arial");
+  const [fontFamily, setFontFamily] = useState("Helvetica");
   const [fontSize, setFontSize] = useState(12);
+  // Draft keeps intermediate typing ("", "1") editable without the 4-200
+  // clamp fighting each keystroke; commits on valid change, Enter, or blur.
+  const [sizeDraft, setSizeDraft] = useState(null);
   const [bold, setBold] = useState(false);
   const [italic, setItalic] = useState(false);
   const [underline, setUnderline] = useState(false);
@@ -290,18 +300,35 @@ export default function EditorToolbar() {
   // Sync toolbar state when selection changes
   useEffect(() => {
     if (!sel) return;
-    // Extract CSS font-family to a simple name for the dropdown
-    const rawFamily = sel.fontFamily || "Arial";
-    const match = FONTS.find((f) =>
-      rawFamily.toLowerCase().includes(f.toLowerCase()),
-    );
-    setFontFamily(match || "Arial");
+    // Canonicalize through classifyFont: the exported font is always one of
+    // the three base-14 families, so the dropdown must mirror that instead
+    // of guessing from the CSS stack (old contains-match picked "Arial" for
+    // a "Helvetica, Arial" stack and showed families export can't honor).
+    const family = sel.fontName || classifyFont(sel.fontFamily || "").family;
+    const match =
+      FONTS.find((f) => f.value === family) ||
+      FONTS.find((f) =>
+        (sel.fontFamily || "")
+          .toLowerCase()
+          .includes(f.value.split("-")[0].toLowerCase()),
+      );
+    setFontFamily(match ? match.value : "Helvetica");
     setFontSize(Math.round(sel.fontSize || 12));
     setBold(sel.fontBold || false);
     setItalic(sel.fontItalic || false);
     setUnderline(sel.fontUnderline || false);
     setColor(sel.color || "#000000");
-  }, [sel?.id, sel?.fontBold, sel?.fontItalic, sel?.fontSize, sel?.color]);
+    setSizeDraft(null);
+  }, [
+    sel?.id,
+    sel?.fontFamily,
+    sel?.fontName,
+    sel?.fontBold,
+    sel?.fontItalic,
+    sel?.fontUnderline,
+    sel?.fontSize,
+    sel?.color,
+  ]);
 
   // Apply a formatting update to the selected element
   const applyFormat = (updates) => {
@@ -316,24 +343,10 @@ export default function EditorToolbar() {
     }
   };
 
-  const handleFontFamily = (f) => {
-    setFontFamily(f);
-    // Map display name to CSS stack
-    const cssMap = {
-      Arial: 'Arial, "Noto Sans", Helvetica, sans-serif',
-      Helvetica: "Helvetica, Arial, sans-serif",
-      "Times New Roman": '"Times New Roman", "Noto Serif", Times, serif',
-      Georgia: 'Georgia, "Noto Serif", serif',
-      "Courier New": '"Courier New", Courier, monospace',
-      Verdana: "Verdana, Arial, sans-serif",
-      Tahoma: "Tahoma, Arial, sans-serif",
-      "Trebuchet MS": '"Trebuchet MS", Arial, sans-serif',
-      Calibri: "Calibri, Arial, sans-serif",
-      Cambria: "Cambria, Georgia, serif",
-      Garamond: "Garamond, Georgia, serif",
-      Palatino: '"Palatino Linotype", Georgia, serif',
-    };
-    applyFormat({ fontFamily: cssMap[f] || f, fontName: f });
+  const handleFontFamily = (value) => {
+    setFontFamily(value);
+    const f = FONTS.find((x) => x.value === value);
+    applyFormat({ fontName: value, fontFamily: f ? f.css : value });
   };
 
   const handleFontSize = (v) => {
@@ -471,21 +484,37 @@ export default function EditorToolbar() {
         aria-label="Font family"
       >
         {FONTS.map((f) => (
-          <option key={f} value={f}>
-            {f}
+          <option key={f.value} value={f.value} style={{ fontFamily: f.css }}>
+            {f.label}
           </option>
         ))}
       </select>
 
-      {/* Font size */}
+      {/* Font size — native spinners hidden (they collide at 40px); the
+          number is still keyboard-arrow steppable and clamped 4-200 */}
       <input
         type="number"
         className={`${styles.numInput} ${styles.desktopOnly}`}
-        value={fontSize}
+        value={sizeDraft ?? fontSize}
         min={4}
         max={200}
+        step={1}
         disabled={!hasSelection}
-        onChange={(e) => handleFontSize(e.target.value)}
+        onChange={(e) => {
+          setSizeDraft(e.target.value);
+          const n = Number(e.target.value);
+          if (e.target.value !== "" && Number.isFinite(n) && n >= 4)
+            handleFontSize(n);
+        }}
+        onBlur={() => setSizeDraft(null)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            const n = Number(e.currentTarget.value);
+            handleFontSize(Number.isFinite(n) ? n : 12);
+            setSizeDraft(null);
+            e.currentTarget.blur();
+          }
+        }}
         title="Font size"
         aria-label="Font size"
       />

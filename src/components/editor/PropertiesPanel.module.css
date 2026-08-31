@@ -55,17 +55,87 @@
   font-family: var(--font-sans);
 }
 
-.numCtrl {
-  width: 52px;
+.fontCtrl {
   height: 24px;
   font-size: 11px;
   border: 1px solid var(--brd-2);
   border-radius: var(--r-sm);
-  padding: 0 5px;
+  padding: 0 4px;
   background: var(--bg-card);
   color: var(--tx-1);
-  text-align: right;
+  max-width: 118px;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: border-color var(--t-fast);
+}
+
+.fontCtrl:hover,
+.fontCtrl:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+/* Stepper: [-] field [+] — native number spinners hidden; buttons carry the
+   affordance instead, so the field stays clean and centered. */
+.stepper {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--brd-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-card);
+  overflow: hidden;
+  transition: border-color var(--t-fast);
+}
+
+.stepper:focus-within {
+  border-color: var(--accent);
+}
+
+.stepBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  border: none;
+  background: transparent;
+  color: var(--tx-3);
+  cursor: pointer;
+  transition:
+    background var(--t-fast),
+    color var(--t-fast);
+}
+
+.stepBtn:hover {
+  background: var(--bg-card-hover, var(--bg-panel));
+  color: var(--tx-1);
+}
+
+.stepBtn:active {
+  color: var(--accent);
+}
+
+.sizeField {
+  width: 34px;
+  height: 24px;
+  font-size: 11px;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--tx-1);
+  text-align: center;
   font-family: var(--font-mono);
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+
+.sizeField::-webkit-outer-spin-button,
+.sizeField::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.sizeField:focus {
+  outline: none;
 }
 
 .colorRow {

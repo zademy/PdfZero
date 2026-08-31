@@ -1,4 +1,5 @@
 import React from "react";
+import { Minus, Plus } from "lucide-react";
 import {
   FileText,
   Layers,
@@ -11,7 +12,35 @@ import {
 import toast from "react-hot-toast";
 import { usePdfStore } from "../../store/pdfStore.js";
 import { addWatermark, downloadBytes } from "../../lib/pdfExporter.js";
+import { classifyFont } from "../../lib/pdfRenderer.js";
 import styles from "./PropertiesPanel.module.css";
+
+// Canonical export families: classifyFont() collapses every embedded font to
+// one of these three base-14 families, so the picker offers exactly the set
+// the vector exporter can honor. Each option previews in its own typeface.
+const FONT_FAMILIES = [
+  {
+    value: "Helvetica",
+    label: "Helvetica · Sans",
+    css: 'Helvetica, Arial, "Noto Sans", sans-serif',
+  },
+  {
+    value: "Times-Roman",
+    label: "Times · Serif",
+    css: '"Times New Roman", "Noto Serif", Times, serif',
+  },
+  {
+    value: "Courier",
+    label: "Courier · Mono",
+    css: '"Courier New", Courier, monospace',
+  },
+];
+
+const MIN_FONT_SIZE = 4;
+const MAX_FONT_SIZE = 200;
+
+const clampFontSize = (n) =>
+  Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, Math.round(n)));
 
 export default function PropertiesPanel() {
   const {
@@ -24,6 +53,15 @@ export default function PropertiesPanel() {
     updateTextBlock,
     commitExtractedEdit,
   } = usePdfStore();
+
+  // Local draft for the size stepper: keeps intermediate typing ("", "1")
+  // editable without the clamp fighting the user; commits on valid change,
+  // Enter, or blur. Re-syncs whenever the selection or its size changes.
+  const [sizeDraft, setSizeDraft] = React.useState(null);
+  const selectedSize = selectedElement?.fontSize;
+  React.useEffect(() => {
+    setSizeDraft(null);
+  }, [selectedElement?.id, selectedElementPage, selectedSize]);
 
   const totalEdits = Object.values(editLayers).reduce(
     (sum, layer) =>
@@ -129,43 +167,87 @@ export default function PropertiesPanel() {
             {(selectedElement.str?.length || 0) > 60 ? "…" : ""}
           </div>
 
-          {/* Font family */}
+          {/* Font family — controlled; classifyFont canonicalizes whatever the
+              block carries (embedded PDF name or previous web-name choice) to
+              one of the three export families so the picker always matches. */}
           <div className={styles.row}>
             <span className={styles.lbl}>Font</span>
             <select
-              className={styles.ctrl}
-              defaultValue="Helvetica"
+              className={styles.fontCtrl}
+              value={classifyFont(selectedElement.fontName || "").family}
               onChange={(e) => updateProp({ fontName: e.target.value })}
             >
-              {[
-                "Helvetica",
-                "Times New Roman",
-                "Times-Roman",
-                "Courier New",
-                "Courier",
-                "Georgia",
-                "Arial",
-              ].map((f) => (
-                <option key={f} value={f}>
-                  {f.replace("Times-Roman", "Times Roman")}
+              {FONT_FAMILIES.map((f) => (
+                <option
+                  key={f.value}
+                  value={f.value}
+                  style={{ fontFamily: f.css }}
+                >
+                  {f.label}
                 </option>
               ))}
             </select>
           </div>
 
-          {/* Font size */}
+          {/* Font size — stepper with hidden native spinners; clamped both
+              ways (the old max attr only bounded the spinner, not typing). */}
           <div className={styles.row}>
             <span className={styles.lbl}>Size</span>
-            <input
-              type="number"
-              min={4}
-              max={200}
-              className={styles.numCtrl}
-              defaultValue={Math.round(selectedElement.fontSize || 12)}
-              onChange={(e) =>
-                updateProp({ fontSize: Math.max(4, Number(e.target.value)) })
-              }
-            />
+            <div className={styles.stepper}>
+              <button
+                type="button"
+                className={styles.stepBtn}
+                aria-label="Decrease font size"
+                onClick={() =>
+                  updateProp({
+                    fontSize: clampFontSize((selectedSize || 12) - 1),
+                  })
+                }
+              >
+                <Minus size={11} />
+              </button>
+              <input
+                type="number"
+                min={MIN_FONT_SIZE}
+                max={MAX_FONT_SIZE}
+                step={1}
+                className={styles.sizeField}
+                value={sizeDraft ?? clampFontSize(selectedSize || 12)}
+                onChange={(e) => {
+                  setSizeDraft(e.target.value);
+                  const n = Number(e.target.value);
+                  if (
+                    e.target.value !== "" &&
+                    Number.isFinite(n) &&
+                    n >= MIN_FONT_SIZE
+                  )
+                    updateProp({ fontSize: clampFontSize(n) });
+                }}
+                onBlur={() => setSizeDraft(null)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    const n = Number(e.currentTarget.value);
+                    updateProp({
+                      fontSize: clampFontSize(Number.isFinite(n) ? n : 12),
+                    });
+                    setSizeDraft(null);
+                    e.currentTarget.blur();
+                  }
+                }}
+              />
+              <button
+                type="button"
+                className={styles.stepBtn}
+                aria-label="Increase font size"
+                onClick={() =>
+                  updateProp({
+                    fontSize: clampFontSize((selectedSize || 12) + 1),
+                  })
+                }
+              >
+                <Plus size={11} />
+              </button>
+            </div>
           </div>
 
           {/* Color — shows the DETECTED color from PDF */}
