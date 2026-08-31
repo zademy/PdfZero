@@ -95,11 +95,22 @@ export default function EditorToolbar() {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [translatingPage, setTranslatingPage] = useState(false);
 
-  // Char budget from the box's REAL geometry: how many characters fit in the
-  // original box width at the original font's average advance. Char-count
-  // multipliers (x1.25) let Spanish growth overrun into neighbor boxes on the
-  // same visual line (e.g. split headings); geometry keeps translations inside
-  // their own footprint.
+  // Measure a translation's REAL rendered width (px, same coordinate space
+  // as block geometry) using an offscreen canvas with the block's font —
+  // char-count budgets are estimates; accented Spanish glyphs routinely run
+  // wider and overrun the box / the page's right margin.
+  const measureWidth = (() => {
+    let ctx = null;
+    return (text, block) => {
+      if (!ctx) ctx = document.createElement("canvas").getContext("2d");
+      const fontSize = Math.max(block.fontSize || 12, 4);
+      ctx.font = `${block.fontItalic ? "italic " : ""}${block.fontBold ? "bold " : ""}${fontSize}px ${block.fontFamily || "Arial, Helvetica, sans-serif"}`;
+      return ctx.measureText(text).width;
+    };
+  })();
+
+  // Guidance budget for the request payload (chars that fit the box width at
+  // the original font's average advance).
   const charBudget = (block, fallbackText) => {
     const w = block.originalWidth ?? block.width;
     const str = block.originalStr ?? fallbackText ?? "";
@@ -211,24 +222,32 @@ export default function EditorToolbar() {
         return;
       }
 
-      // The model can exceed budgets on short segments (e.g. split headings),
-      // which lets a box overrun its same-line neighbor. Send one condense
-      // pass for every translation longer than its budget.
-      const overBudget = ordered.filter(
-        (e) =>
-          result.translations[e.id] &&
-          result.translations[e.id].length > e.budget,
-      );
-      if (overBudget.length) {
+      // Validate REAL rendered width against the box: char budgets are only
+      // guidance, but a measured overrun visibly escapes the box and the
+      // page's right margin. Condense everything that measures over.
+      const overWidth = ordered.filter((e) => {
+        const translated = result.translations[e.id];
+        if (!translated) return false;
+        const boxWidth = e.block.originalWidth ?? e.block.width ?? 0;
+        if (!boxWidth) return false;
+        return measureWidth(translated, e.block) > boxWidth * 1.01;
+      });
+      if (overWidth.length) {
         const condensed = await condenseTranslations(
-          overBudget.map((e) => ({
-            id: e.id,
-            text: result.translations[e.id],
-            budget: e.budget,
-          })),
+          overWidth.map((e) => {
+            const translated = result.translations[e.id];
+            const boxWidth = e.block.originalWidth ?? e.block.width;
+            const measured = measureWidth(translated, e.block);
+            // Back-solve a char budget from the real measurement (97% safety)
+            const backSolved = Math.max(
+              3,
+              Math.floor((translated.length * boxWidth * 0.97) / measured),
+            );
+            return { id: e.id, text: translated, budget: backSolved };
+          }),
         );
         if (condensed.ok) {
-          for (const e of overBudget) {
+          for (const e of overWidth) {
             const shorter = condensed.translations[e.id];
             if (shorter && shorter.length < result.translations[e.id].length) {
               result.translations[e.id] = shorter;
