@@ -1,0 +1,47 @@
+name: "\U0001F31F Feature request"
+description: Suggest an idea or improvement for PDFZero
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the suggestion! Check the
+        [roadmap](https://github.com/zademy/PdfZero#roadmap) first — it may already be planned.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Your use case, not the solution. "I'm trying to… but I can't because…"
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What solution would you like?
+      description: A clear description of what you want to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives you've considered
+      description: Other tools, workarounds, or features that almost cover it.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area does this touch?
+      multiple: true
+      options:
+        - Edit (text / images / annotations)
+        - Translate (AI)
+        - Organize (merge / split / pages)
+        - Optimize (compress)
+        - Secure (protect / redact / watermark)
+        - Smart (OCR / AI)
+        - Other
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Screenshots, mockups, links, anything else.

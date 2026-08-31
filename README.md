@@ -15,7 +15,7 @@
 
 [![Fork of bevinkatti/PdfZero](https://img.shields.io/badge/fork%20of-bevinkatti%2FPDFZero-yellow?logo=github)](https://github.com/bevinkatti/PdfZero)
 [![Open Source](https://img.shields.io/badge/open%20source-yes-brightgreen)]()
-[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](#license)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Privacy First](https://img.shields.io/badge/privacy-100%25%20local-success)]()
 [![Offline Ready](https://img.shields.io/badge/offline-ready-blueviolet)]()
 [![Built with React](https://img.shields.io/badge/built%20with-React-61DAFB?logo=react&logoColor=white)]()
@@ -220,7 +220,8 @@ Changes on top of the original [bevinkatti/PdfZero](https://github.com/bevinkatt
 - **Editing accuracy fixes** — corrected color detection heuristics and export behavior for edge-case pages.
 - **Translation regression tests** — `src/lib/translation.test.js` (Vitest) covering separators, retries, and budget fitting.
 
-See the [commit history](https://github.com/zademy/PdfZero/commits) for the full list.
+See [CHANGELOG.md](CHANGELOG.md) for details, and the
+[commit history](https://github.com/zademy/PdfZero/commits) for everything else.
 
 ---
 
@@ -254,7 +255,10 @@ See the [commit history](https://github.com/zademy/PdfZero/commits) for the full
 
 ## Contributing
 
-PRs are very welcome — against **this fork**. Please open an issue first for major changes.
+PRs are very welcome — against **this fork**. Please read
+[CONTRIBUTING.md](CONTRIBUTING.md) first, open an issue for major changes, and
+follow our [Code of Conduct](CODE_OF_CONDUCT.md). See also
+[SECURITY.md](SECURITY.md) and [SUPPORT.md](SUPPORT.md).
 
 ```bash
 npm install
@@ -274,7 +278,7 @@ npm test
 ## License
 
 MIT — original project © **bevinkatti**; changes in this fork © [PdfZero contributors](https://github.com/zademy/PdfZero/graphs/contributors).
-The upstream README declares the project as MIT-licensed.
+See [LICENSE](LICENSE).
 
 ---
 If you find PDFZero useful, consider giving a ⭐ to both [the original](https://github.com/bevinkatti/PdfZero) and this fork.

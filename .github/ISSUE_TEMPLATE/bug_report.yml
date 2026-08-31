@@ -1,0 +1,50 @@
+name: "\U0001F41B Bug report"
+description: Something isn't working as expected
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug in **zademy/PdfZero** (community fork).
+        Please fill in the sections below — a good report gets fixed faster.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: A clear description of the bug. Include console errors (DevTools) if any.
+      placeholder: The text edit shifted to the right after exporting…
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Minimal steps to trigger the problem.
+      placeholder: |
+        1. Open the editor with '…​.pdf'
+        2. Click the text block '…'
+        3. Change the text and export
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: input
+    id: browsers
+    attributes:
+      label: Browser and OS
+      placeholder: "Chrome 138, macOS 15"
+  - type: textarea
+    id: sample
+    attributes:
+      label: Sample PDF
+      description: Attach the PDF (or a link) that triggers the bug, if you can share it.
+  - type: markdown
+    attributes:
+      value: |
+        **Security issues**: do NOT use this form — follow
+        [SECURITY.md](https://github.com/zademy/PdfZero/blob/main/SECURITY.md) instead.

@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/zademy/PdfZero#readme
+    about: Features, setup, architecture, and roadmap — start here.
+  - name: 🛟 Support & questions
+    url: https://github.com/zademy/PdfZero/blob/main/SUPPORT.md
+    about: Where to get help before opening an issue.
+  - name: 🔒 Report a security vulnerability
+    url: https://github.com/zademy/PdfZero/security/advisories/new
+    about: Please report security issues privately — never as a public issue.
+  - name: 🧭 Contributing guide
+    url: https://github.com/zademy/PdfZero/blob/main/CONTRIBUTING.md
+    about: Dev setup, conventions, and PR ground rules.
