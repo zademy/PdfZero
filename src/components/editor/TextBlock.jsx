@@ -2,6 +2,7 @@ import React, {
   useRef,
   useState,
   useEffect,
+  useLayoutEffect,
   useCallback,
   useMemo,
 } from "react";
@@ -470,6 +471,19 @@ export function TextContextToolbar({
   } = usePdfStore();
   const [translate, setTranslate] = useState({ phase: "idle", draft: "" });
   const translating = translate.phase === "loading";
+  const toolbarRef = useRef(null);
+  const [popoverShift, setPopoverShift] = useState(0);
+
+  // Keep the preview popover inside the viewport: when the toolbar sits far
+  // right (mobile, or right-edge blocks), shift the popover left by the
+  // amount it would overflow.
+  useLayoutEffect(() => {
+    if (translate.phase !== "preview" || !toolbarRef.current) return;
+    const rect = toolbarRef.current.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const width = Math.min(320, vw * 0.78);
+    setPopoverShift(Math.min(0, vw - 16 - width - rect.left));
+  }, [translate.phase]);
 
   const startTranslate = async () => {
     if (translating) return;
@@ -517,6 +531,7 @@ export function TextContextToolbar({
 
   return (
     <div
+      ref={toolbarRef}
       style={{
         position: "absolute",
         left: pos.x,
@@ -542,7 +557,7 @@ export function TextContextToolbar({
     >
       {[
         { label: "✏️ Edit", action: () => onEdit(), disabled: translating },
-        { label: null }, // separator
+        { separator: true },
         {
           icon: <Copy size={16} />,
           title: "Duplicate",
@@ -578,7 +593,7 @@ export function TextContextToolbar({
           disabled: translating,
           action: () => toast("AI font match — v1.1", { icon: "✨" }),
         },
-        { label: null }, // separator
+        { separator: true },
         {
           icon: <Trash2 size={16} />,
           title: "Delete",
@@ -591,7 +606,7 @@ export function TextContextToolbar({
           },
         },
       ].map((item, i) => {
-        if (item.label === null)
+        if (item.separator)
           return (
             <div
               key={i}
@@ -642,7 +657,7 @@ export function TextContextToolbar({
           style={{
             position: "absolute",
             top: "calc(100% + 8px)",
-            left: 0,
+            left: popoverShift,
             width: "min(320px, 78vw)",
             background: "#18181b",
             border: "1px solid rgba(255,255,255,0.15)",

@@ -91,6 +91,38 @@ describe("translateText — directions", () => {
   });
 });
 
+describe("translateText — echo retry", () => {
+  it("retries once with the explicit prompt when the model echoes the input", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse("The cat is sleeping"));
+    fetchMock.mockResolvedValueOnce(okResponse("El gato está durmiendo"));
+
+    const result = await translateText("The cat is sleeping");
+
+    expect(result).toEqual({ ok: true, translated: "El gato está durmiendo" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retryBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(retryBody.messages[0].content).toMatch(/other language/i);
+    expect(retryBody.messages[1].content).toBe("The cat is sleeping");
+  });
+
+  it("returns the echo as-is when the retry also echoes", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse("Hola"));
+    fetchMock.mockResolvedValueOnce(okResponse("Hola"));
+
+    const result = await translateText("Hola");
+
+    expect(result).toEqual({ ok: true, translated: "Hola" });
+  });
+
+  it("does not retry when the first response differs from the input", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse("El gato está durmiendo"));
+
+    await translateText("The cat is sleeping");
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("translateText — error outcomes", () => {
   it("returns EMPTY_TEXT and makes no request for blank input", async () => {
     const result = await translateText("   \n\t ");

@@ -6,13 +6,13 @@ Reference spec: `docs/specs/translate-text-blocks-en-es.md`.
 
 ## Acceptance criteria
 
-- [ ] A dev dependency + npm script runs the new test suite (Vitest); `npm run lint` still passes
-- [ ] The pure translation function returns `{ translated }` for English input (Spanish out) and Spanish input (English out) under mocked fetch
-- [ ] Outgoing request shape is asserted: coding-plan chat-completions endpoint, model glm-5.2, `thinking.type: disabled`, `stream: false`, `temperature: 0.2`, system prompt instructing auto-direction EN↔ES, translation-only output, line-break preservation
-- [ ] Missing API key (env var absent) produces a specific, distinguishable error outcome — not a thrown generic
-- [ ] Network failure and invalid/unexpected response body each produce their own distinguishable error outcomes
-- [ ] `.env.example` documents the new env var with a short comment; the real `.env.local` remains untracked
-- [ ] Multi-line input preserves line breaks in the result under mocked fetch
+- [x] A dev dependency + npm script runs the new test suite (Vitest); `npm run lint` still passes
+- [x] The pure translation function returns `{ translated }` for English input (Spanish out) and Spanish input (English out) under mocked fetch
+- [x] Outgoing request shape is asserted: coding-plan chat-completions endpoint, model glm-5.2, `thinking.type: disabled`, `stream: false`, `temperature: 0.2`, system prompt instructing auto-direction EN↔ES, translation-only output, line-break preservation
+- [x] Missing API key (env var absent) produces a specific, distinguishable error outcome — not a thrown generic
+- [x] Network failure and invalid/unexpected response body each produce their own distinguishable error outcomes
+- [x] `.env.example` documents the new env var with a short comment; the real `.env.local` remains untracked
+- [x] Multi-line input preserves line breaks in the result under mocked fetch
 
 ## Blocked by
 
