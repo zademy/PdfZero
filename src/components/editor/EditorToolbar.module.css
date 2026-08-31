@@ -86,7 +86,8 @@
   background: var(--bg-card);
   color: var(--tx-1);
   cursor: pointer;
-  max-width: 130px;
+  min-width: 140px;
+  max-width: 165px;
   font-family: var(--font-sans);
 }
 

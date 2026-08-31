@@ -24,6 +24,8 @@ import {
   classifyFont,
   getEmbeddedFontData,
 } from "./pdfRenderer.js";
+import { isCustomFamily } from "./fontRegistry.js";
+import { getCustomFontBytes } from "./fontFiles.js";
 import {
   layoutTextForBlock,
   splitTextLines,
@@ -756,6 +758,39 @@ async function exportVectorPdf(
         return fontCache[embeddedKey];
       } catch (_) {
         delete fontCache[embeddedKey];
+      }
+    }
+
+    // ── Substitute-family tier (fontRegistry.js) ───────────────────────────
+    // When the block's family resolves to one of our in-repo TTF families
+    // (picker choice, or classifyFont matched it in the original PDF), embed
+    // that file — multilingual coverage the base-14 set can't provide. Falls
+    // through to a standard font if the asset can't be fetched/encoded.
+    const familyInfo = classifyFont(block.fontName || block.stdFont || "");
+    if (isCustomFamily(familyInfo.family)) {
+      const bold = block.fontBold ?? familyInfo.bold;
+      const customKey = `custom:${familyInfo.family}:${bold ? "bold" : "regular"}`;
+      try {
+        if (!fontCache[customKey]) {
+          const bytes = await getCustomFontBytes(familyInfo.family, { bold });
+          if (!bytes) throw new Error("no font asset");
+          fontCache[customKey] = await pdfDoc.embedFont(bytes, {
+            subset: true,
+          });
+        }
+        if (previewText) {
+          if (!fontSupportsText(fontCache[customKey], previewText)) {
+            throw new Error("Custom font cannot render replacement text");
+          }
+          fontCache[customKey].widthOfTextAtSize(
+            previewText,
+            Math.max((block.fontSize || 12) / BASE_SCALE, 1),
+          );
+          fontCache[customKey].encodeText(previewText);
+        }
+        return fontCache[customKey];
+      } catch (_) {
+        delete fontCache[customKey];
       }
     }
 

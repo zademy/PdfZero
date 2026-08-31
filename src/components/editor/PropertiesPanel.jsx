@@ -13,28 +13,8 @@ import toast from "react-hot-toast";
 import { usePdfStore } from "../../store/pdfStore.js";
 import { addWatermark, downloadBytes } from "../../lib/pdfExporter.js";
 import { classifyFont } from "../../lib/pdfRenderer.js";
+import { FAMILIES as FONT_FAMILIES } from "../../lib/fontRegistry.js";
 import styles from "./PropertiesPanel.module.css";
-
-// Canonical export families: classifyFont() collapses every embedded font to
-// one of these three base-14 families, so the picker offers exactly the set
-// the vector exporter can honor. Each option previews in its own typeface.
-const FONT_FAMILIES = [
-  {
-    value: "Helvetica",
-    label: "Helvetica · Sans",
-    css: 'Helvetica, Arial, "Noto Sans", sans-serif',
-  },
-  {
-    value: "Times-Roman",
-    label: "Times · Serif",
-    css: '"Times New Roman", "Noto Serif", Times, serif',
-  },
-  {
-    value: "Courier",
-    label: "Courier · Mono",
-    css: '"Courier New", Courier, monospace',
-  },
-];
 
 const MIN_FONT_SIZE = 4;
 const MAX_FONT_SIZE = 200;

@@ -63,7 +63,8 @@
   padding: 0 4px;
   background: var(--bg-card);
   color: var(--tx-1);
-  max-width: 118px;
+  min-width: 140px;
+  max-width: 150px;
   font-family: var(--font-sans);
   cursor: pointer;
   transition: border-color var(--t-fast);

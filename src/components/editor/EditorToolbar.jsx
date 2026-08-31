@@ -47,27 +47,10 @@ const TOOLS = [
   { id: "redact", icon: EyeOff, label: "Redact" },
 ];
 
-// Canonical export families: classifyFont() (used by the vector exporter)
-// collapses every font to one of these three base-14 families, so offering
-// web names like "Georgia" or "Arial" made the picker lie about what export
-// actually honors. Labels preview in their own typeface.
-const FONTS = [
-  {
-    value: "Helvetica",
-    label: "Helvetica",
-    css: 'Helvetica, Arial, "Noto Sans", sans-serif',
-  },
-  {
-    value: "Times-Roman",
-    label: "Times",
-    css: '"Times New Roman", "Noto Serif", Times, serif',
-  },
-  {
-    value: "Courier",
-    label: "Courier",
-    css: '"Courier New", Courier, monospace',
-  },
-];
+// Font families come from fontRegistry.js — the single list shared with the
+// properties panel, classifyFont, and the vector exporter (custom families
+// embed real TTFs; labels preview in their own typeface).
+import { FAMILIES as FONTS } from "../../lib/fontRegistry.js";
 
 export default function EditorToolbar() {
   const {

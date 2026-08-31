@@ -3,6 +3,7 @@ import {
   buildExtractedTextMetrics,
   estimateGlyphsForRun,
 } from "./pdfTextLayout.js";
+import { CUSTOM_PATTERNS, FAMILY_VALUES, familyCss } from "./fontRegistry.js";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   "pdfjs-dist/build/pdf.worker.min.mjs",
@@ -61,6 +62,20 @@ export function classifyFont(rawName) {
   // Detect bold/italic from name
   const bold = /bold|heavy|black|semibold|demi|extrab/i.test(n);
   const italic = /italic|oblique|(-it)($|[^a-z])/i.test(n);
+
+  // ── 0. Embeddable substitute families (fontRegistry.js) ──────────────────
+  // These have real TTFs in-repo (fontFiles.js), so a detected match keeps
+  // its true family through screen rendering AND vector export instead of
+  // collapsing into the generic sans/serif buckets below.
+  for (const { value, re } of CUSTOM_PATTERNS) {
+    if (re.test(n)) {
+      return { family: value, bold, italic, css: familyCss(value) };
+    }
+  }
+  // Exact family value passthrough (blocks already carrying a picker choice)
+  if (FAMILY_VALUES.has(rawName)) {
+    return { family: rawName, bold, italic, css: familyCss(rawName) };
+  }
 
   // ── 1. Times New Roman and Roman/Serif families ──────────────────────────
   // Must come before Arial check since "TimesNewRomanPS-BoldMT" is the real
