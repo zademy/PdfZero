@@ -1,5 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { translateText, GLM_API_URL, GLM_MODEL } from "./translation.js";
+import {
+  translateText,
+  translatePage,
+  condenseTranslations,
+  sortByReadingOrder,
+  GLM_API_URL,
+  GLM_MODEL,
+} from "./translation.js";
 
 const okResponse = (text) => ({
   ok: true,
@@ -185,5 +192,196 @@ describe("translateText — error outcomes", () => {
     const result = await translateText("Hello");
 
     expect(result).toMatchObject({ ok: false, code: "BAD_RESPONSE" });
+  });
+});
+
+describe("sortByReadingOrder", () => {
+  it("sorts blocks top-to-bottom, then left-to-right", () => {
+    const blocks = [
+      { id: "b", x: 300, y: 100 },
+      { id: "a", x: 50, y: 100 },
+      { id: "d", x: 50, y: 300 },
+      { id: "c", x: 20, y: 200 },
+    ];
+    expect(sortByReadingOrder(blocks).map((b) => b.id)).toEqual([
+      "a",
+      "b",
+      "c",
+      "d",
+    ]);
+  });
+});
+
+describe("translatePage — batch", () => {
+  const entries = [
+    { id: "i1", text: "Hello world", budget: 15 },
+    { id: "i2", text: "Good morning", budget: 16 },
+    { id: "i3", text: "Buenos días", budget: 15 },
+  ];
+
+  it("sends ONE request with the JSON array payload and a max-token ceiling", async () => {
+    fetchMock.mockResolvedValueOnce(
+      okResponse(
+        JSON.stringify({
+          i1: "Hola mundo",
+          i2: "Buenos días",
+          i3: "Good morning",
+        }),
+      ),
+    );
+
+    const result = await translatePage(entries);
+
+    expect(result.ok).toBe(true);
+    expect(result.translations).toEqual({
+      i1: "Hola mundo",
+      i2: "Buenos días",
+      i3: "Good morning",
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe(GLM_API_URL);
+    const body = JSON.parse(init.body);
+    expect(body.model).toBe(GLM_MODEL);
+    expect(body.thinking).toEqual({ type: "disabled" });
+    expect(body.stream).toBe(false);
+    expect(body.temperature).toBe(0.2);
+    expect(body.max_tokens).toBeGreaterThanOrEqual(8192);
+    expect(body.messages[0].role).toBe("system");
+    expect(body.messages[0].content).toMatch(/JSON/i);
+    expect(body.messages[0].content).toMatch(/budget/i);
+    expect(JSON.parse(body.messages[1].content)).toEqual(entries);
+  });
+
+  it("accepts a fenced JSON response", async () => {
+    fetchMock.mockResolvedValueOnce(
+      okResponse(
+        "```json\n" +
+          JSON.stringify({
+            i1: "Hola mundo",
+            i2: "Buenos días",
+            i3: "Good morning",
+          }) +
+          "\n```",
+      ),
+    );
+
+    const result = await translatePage(entries);
+
+    expect(result.ok).toBe(true);
+    expect(result.translations.i1).toBe("Hola mundo");
+  });
+
+  it("falls back to single-block translation for ids the batch skipped", async () => {
+    fetchMock.mockResolvedValueOnce(
+      okResponse(JSON.stringify({ i1: "Hola mundo" })),
+    );
+    // Fallback call for i2 (single-block shape → returns plain string content)
+    fetchMock.mockResolvedValueOnce(okResponse("Buenos días"));
+    // Fallback call for i3 fails with HTTP error
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    });
+
+    const result = await translatePage(entries);
+
+    expect(result.ok).toBe(true);
+    expect(result.translations.i1).toBe("Hola mundo");
+    expect(result.translations.i2).toBe("Buenos días");
+    expect(result.fallbackUsed).toEqual(["i2"]);
+    expect(result.failed).toEqual(["i3"]);
+    // Batch call + 2 fallback calls
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const fallbackBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(fallbackBody.messages[1].content).toBe("Good morning");
+  });
+
+  it("falls back per-block when the batch response is not JSON at all", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse("Lo siento, no puedo."));
+    fetchMock.mockResolvedValueOnce(okResponse("Hola mundo"));
+    fetchMock.mockResolvedValueOnce(okResponse("Buenos días"));
+    fetchMock.mockResolvedValueOnce(okResponse("Good morning"));
+
+    const result = await translatePage(entries);
+
+    expect(result.ok).toBe(true);
+    expect(result.fallbackUsed.sort()).toEqual(["i1", "i2", "i3"]);
+    expect(result.failed).toEqual([]);
+  });
+
+  it("propagates distinguishable errors on network failure with no fallback", async () => {
+    fetchMock.mockRejectedValue(new Error("boom"));
+
+    const result = await translatePage(entries);
+
+    expect(result.ok).toBe(false);
+    expect(["NETWORK", "API_ERROR", "BAD_RESPONSE"]).toContain(result.code);
+  });
+
+  it("returns EMPTY_TEXT early for an empty page", async () => {
+    const result = await translatePage([]);
+
+    expect(result).toMatchObject({ ok: false, code: "EMPTY_TEXT" });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("condenseTranslations", () => {
+  it("sends one request with id/text/budget and returns the compressed map", async () => {
+    fetchMock.mockResolvedValueOnce(
+      okResponse(JSON.stringify({ i1: "Elogios" })),
+    );
+
+    const result = await condenseTranslations([
+      { id: "i1", text: "Elogios para", budget: 9 },
+    ]);
+
+    expect(result).toEqual({ ok: true, translations: { i1: "Elogios" } });
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.messages[0].content).toMatch(/budget/i);
+    expect(JSON.parse(body.messages[1].content)).toEqual([
+      { id: "i1", text: "Elogios para", budget: 9 },
+    ]);
+  });
+
+  it("keeps the original when the model returns something LONGER", async () => {
+    fetchMock.mockResolvedValueOnce(
+      okResponse(JSON.stringify({ i1: "Una edicion con premios" })),
+    );
+
+    const result = await condenseTranslations([
+      { id: "i1", text: "Elogios para", budget: 9 },
+    ]);
+
+    expect(result.translations.i1).toBe("Elogios para");
+  });
+
+  it("keeps the original for ids the model skipped", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse(JSON.stringify({})));
+
+    const result = await condenseTranslations([
+      { id: "i1", text: "Elogios para", budget: 9 },
+    ]);
+
+    expect(result.translations.i1).toBe("Elogios para");
+  });
+
+  it("returns an error for malformed responses", async () => {
+    fetchMock.mockResolvedValueOnce(okResponse("nope"));
+
+    const result = await condenseTranslations([
+      { id: "i1", text: "x", budget: 1 },
+    ]);
+
+    expect(result.ok).toBe(false);
+    expect(result.code).toBe("BAD_RESPONSE");
+  });
+
+  it("is a no-op for an empty list", async () => {
+    const result = await condenseTranslations([]);
+    expect(result).toEqual({ ok: true, translations: {} });
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

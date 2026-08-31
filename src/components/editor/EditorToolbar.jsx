@@ -1,184 +1,423 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from "react";
 import {
-  MousePointer2, Type, Image, Pencil, Square, PenLine,
-  Highlighter, EyeOff, Undo2, Redo2, ZoomIn, ZoomOut,
-  Download, Scan, Sparkles, Loader2, Bold, Italic, Underline,
-  PanelLeft, SlidersHorizontal
-} from 'lucide-react'
-import toast from 'react-hot-toast'
-import { usePdfStore } from '../../store/pdfStore.js'
-import { exportPdf, downloadBytes } from '../../lib/pdfExporter.js'
-import { renderPage } from '../../lib/pdfRenderer.js'
-import { ocrCanvas } from '../../lib/ocrEngine.js'
-import DropZone from '../ui/DropZone.jsx'
-import styles from './EditorToolbar.module.css'
+  MousePointer2,
+  Type,
+  Image,
+  Pencil,
+  Square,
+  PenLine,
+  Highlighter,
+  EyeOff,
+  Undo2,
+  Redo2,
+  ZoomIn,
+  ZoomOut,
+  Download,
+  Scan,
+  Sparkles,
+  Loader2,
+  Bold,
+  Italic,
+  Underline,
+  PanelLeft,
+  SlidersHorizontal,
+  Languages,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import { usePdfStore } from "../../store/pdfStore.js";
+import { exportPdf, downloadBytes } from "../../lib/pdfExporter.js";
+import { renderPage } from "../../lib/pdfRenderer.js";
+import { ocrCanvas } from "../../lib/ocrEngine.js";
+import {
+  translatePage,
+  condenseTranslations,
+  sortByReadingOrder,
+} from "../../lib/translation.js";
+import DropZone from "../ui/DropZone.jsx";
+import styles from "./EditorToolbar.module.css";
 
 const TOOLS = [
-  { id: 'select',    icon: MousePointer2, label: 'Select & edit text' },
-  { id: 'text',      icon: Type,          label: 'Add text box' },
-  { id: 'image',     icon: Image,         label: 'Add image' },
-  { id: 'draw',      icon: Pencil,        label: 'Draw' },
-  { id: 'shape',     icon: Square,        label: 'Shape' },
-  { id: 'sign',      icon: PenLine,       label: 'Sign' },
-  { id: 'highlight', icon: Highlighter,   label: 'Highlight' },
-  { id: 'redact',    icon: EyeOff,        label: 'Redact' },
-]
+  { id: "select", icon: MousePointer2, label: "Select & edit text" },
+  { id: "text", icon: Type, label: "Add text box" },
+  { id: "image", icon: Image, label: "Add image" },
+  { id: "draw", icon: Pencil, label: "Draw" },
+  { id: "shape", icon: Square, label: "Shape" },
+  { id: "sign", icon: PenLine, label: "Sign" },
+  { id: "highlight", icon: Highlighter, label: "Highlight" },
+  { id: "redact", icon: EyeOff, label: "Redact" },
+];
 
 const FONTS = [
-  'Arial', 'Helvetica', 'Times New Roman', 'Georgia',
-  'Courier New', 'Verdana', 'Tahoma', 'Trebuchet MS',
-  'Calibri', 'Cambria', 'Garamond', 'Palatino',
-]
+  "Arial",
+  "Helvetica",
+  "Times New Roman",
+  "Georgia",
+  "Courier New",
+  "Verdana",
+  "Tahoma",
+  "Trebuchet MS",
+  "Calibri",
+  "Cambria",
+  "Garamond",
+  "Palatino",
+];
 
 export default function EditorToolbar() {
   const {
-    activeTool, setActiveTool, zoom, setZoom,
-    file, editLayers, pageCount, fileName, pageBgs, blockBgs,
-    currentPage, addTextBlock,
-    selectedElement, selectedElementPage,
-    updateTextBlock, commitExtractedEdit,
-    undoEdit, redoEdit,
-    mobilePagesOpen, mobilePropertiesOpen,
-    setMobilePagesOpen, setMobilePropertiesOpen,
-  } = usePdfStore()
+    activeTool,
+    setActiveTool,
+    zoom,
+    setZoom,
+    file,
+    editLayers,
+    pageCount,
+    fileName,
+    pageBgs,
+    blockBgs,
+    currentPage,
+    addTextBlock,
+    selectedElement,
+    selectedElementPage,
+    updateTextBlock,
+    commitExtractedEdit,
+    undoEdit,
+    redoEdit,
+    getLayer,
+    extractedItems,
+    applyPageTranslations,
+    mobilePagesOpen,
+    mobilePropertiesOpen,
+    setMobilePagesOpen,
+    setMobilePropertiesOpen,
+  } = usePdfStore();
 
-  const [ocrRunning,   setOcrRunning]   = useState(false)
-  const [ocrProgress,  setOcrProgress]  = useState(0)
+  const [ocrRunning, setOcrRunning] = useState(false);
+  const [ocrProgress, setOcrProgress] = useState(0);
+  const [translatingPage, setTranslatingPage] = useState(false);
+
+  // Char budget from the box's REAL geometry: how many characters fit in the
+  // original box width at the original font's average advance. Char-count
+  // multipliers (x1.25) let Spanish growth overrun into neighbor boxes on the
+  // same visual line (e.g. split headings); geometry keeps translations inside
+  // their own footprint.
+  const charBudget = (block, fallbackText) => {
+    const w = block.originalWidth ?? block.width;
+    const str = block.originalStr ?? fallbackText ?? "";
+    const adv =
+      block.averageAdvance ||
+      (str.length ? w / str.length : null) ||
+      (block.fontSize || 12) * 0.5;
+    return Math.max(3, Math.floor(w / adv));
+  };
+
+  // The operator-list color heuristic can misassign colors on some pages
+  // (e.g. near-white text on a light page = invisible translation). Snap
+  // near-white text to black when the page background is also light.
+  const isLightColor = (c) => {
+    if (!c) return true;
+    let r;
+    let g;
+    let b;
+    if (c[0] === "#") {
+      const n = parseInt(c.slice(1, 7), 16);
+      r = n >> 16;
+      g = (n >> 8) & 255;
+      b = n & 255;
+    } else {
+      const m = c.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
+      if (m) {
+        r = +m[1];
+        g = +m[2];
+        b = +m[3];
+      } else {
+        return /^(white|whitesmoke|snow|ghostwhite)$/i.test(c);
+      }
+    }
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.85;
+  };
+  const sanitizeColor = (block, pageBg) =>
+    isLightColor(block.color) && isLightColor(pageBg)
+      ? { ...block, color: "#000000" }
+      : block;
+
+  // ── Translate the whole current page in one contextual GLM request ──
+  // Assembles every visible block (extracted originals + committed edits +
+  // user-added boxes) in reading order with per-block character budgets, so
+  // the model keeps context/terminology coherent across boxes and each
+  // translation stays close to its original footprint.
+  const handleTranslatePage = async () => {
+    if (translatingPage || !file) return;
+    const layer = getLayer(currentPage);
+    const extracted = extractedItems[currentPage] || [];
+    const pageBg = pageBgs[currentPage] || "white";
+
+    // Originals already carrying a committed edit: translate their CURRENT
+    // (edited) text under the original's id so the edit updates in place.
+    const editedByOriginalId = new Map(
+      (layer.texts || [])
+        .filter((t) => t.isEdited && t.originalId)
+        .map((t) => [t.originalId, t]),
+    );
+    const userAdded = (layer.texts || []).filter((t) => !t.originalId);
+
+    const extractedEntries = extracted
+      .filter((it) => it.str && it.str.trim())
+      .map((it) => {
+        const edited = editedByOriginalId.get(it.id);
+        const text = edited ? edited.str : it.str;
+        const budgetBlock = edited
+          ? {
+              ...it,
+              originalStr: edited.originalStr,
+              originalWidth: edited.originalWidth,
+              averageAdvance: edited.averageAdvance,
+            }
+          : it;
+        return {
+          kind: "extracted",
+          block: sanitizeColor(it, pageBg),
+          id: it.id,
+          text,
+          budget: charBudget(budgetBlock, text),
+          x: it.x,
+          y: it.y,
+        };
+      });
+    const userEntries = userAdded
+      .filter((t) => t.str && t.str.trim())
+      .map((t) => ({
+        kind: "user",
+        block: t,
+        id: t.id,
+        text: t.str,
+        budget: Math.max(Math.ceil(t.str.length * 1.25), 8),
+        x: t.x,
+        y: t.y,
+      }));
+
+    const ordered = sortByReadingOrder([...extractedEntries, ...userEntries]);
+    if (!ordered.length) {
+      toast("Nothing to translate on this page", { icon: "🚫" });
+      return;
+    }
+
+    setTranslatingPage(true);
+    try {
+      const result = await translatePage(
+        ordered.map(({ id, text, budget }) => ({ id, text, budget })),
+      );
+      if (!result.ok) {
+        toast.error(result.message);
+        return;
+      }
+
+      // The model can exceed budgets on short segments (e.g. split headings),
+      // which lets a box overrun its same-line neighbor. Send one condense
+      // pass for every translation longer than its budget.
+      const overBudget = ordered.filter(
+        (e) =>
+          result.translations[e.id] &&
+          result.translations[e.id].length > e.budget,
+      );
+      if (overBudget.length) {
+        const condensed = await condenseTranslations(
+          overBudget.map((e) => ({
+            id: e.id,
+            text: result.translations[e.id],
+            budget: e.budget,
+          })),
+        );
+        if (condensed.ok) {
+          for (const e of overBudget) {
+            const shorter = condensed.translations[e.id];
+            if (shorter && shorter.length < result.translations[e.id].length) {
+              result.translations[e.id] = shorter;
+            }
+          }
+        }
+      }
+
+      const updates = ordered
+        .map((e) => ({
+          block: e.block,
+          newStr: result.translations[e.id],
+          isExtracted: e.kind === "extracted",
+        }))
+        .filter((u) => u.newStr && u.newStr.trim());
+      if (!updates.length) {
+        toast.error("Translation service returned no text for this page.");
+        return;
+      }
+      applyPageTranslations(currentPage, updates);
+      const skipped = result.failed.length;
+      toast.success(
+        `${updates.length} block${updates.length === 1 ? "" : "s"} translated — Ctrl+Z to undo${skipped ? ` (${skipped} skipped)` : ""}`,
+        { duration: 4000 },
+      );
+    } finally {
+      setTranslatingPage(false);
+    }
+  };
 
   // Mirror selected element's current formatting in the toolbar
-  const sel = selectedElement
-  const [fontFamily, setFontFamily] = useState('Arial')
-  const [fontSize,   setFontSize]   = useState(12)
-  const [bold,       setBold]       = useState(false)
-  const [italic,     setItalic]     = useState(false)
-  const [underline,  setUnderline]  = useState(false)
-  const [color,      setColor]      = useState('#000000')
+  const sel = selectedElement;
+  const [fontFamily, setFontFamily] = useState("Arial");
+  const [fontSize, setFontSize] = useState(12);
+  const [bold, setBold] = useState(false);
+  const [italic, setItalic] = useState(false);
+  const [underline, setUnderline] = useState(false);
+  const [color, setColor] = useState("#000000");
 
   // Sync toolbar state when selection changes
   useEffect(() => {
-    if (!sel) return
+    if (!sel) return;
     // Extract CSS font-family to a simple name for the dropdown
-    const rawFamily = sel.fontFamily || 'Arial'
-    const match = FONTS.find(f => rawFamily.toLowerCase().includes(f.toLowerCase()))
-    setFontFamily(match || 'Arial')
-    setFontSize(Math.round(sel.fontSize || 12))
-    setBold(sel.fontBold   || false)
-    setItalic(sel.fontItalic || false)
-    setUnderline(sel.fontUnderline || false)
-    setColor(sel.color || '#000000')
-  }, [sel?.id, sel?.fontBold, sel?.fontItalic, sel?.fontSize, sel?.color])
+    const rawFamily = sel.fontFamily || "Arial";
+    const match = FONTS.find((f) =>
+      rawFamily.toLowerCase().includes(f.toLowerCase()),
+    );
+    setFontFamily(match || "Arial");
+    setFontSize(Math.round(sel.fontSize || 12));
+    setBold(sel.fontBold || false);
+    setItalic(sel.fontItalic || false);
+    setUnderline(sel.fontUnderline || false);
+    setColor(sel.color || "#000000");
+  }, [sel?.id, sel?.fontBold, sel?.fontItalic, sel?.fontSize, sel?.color]);
 
   // Apply a formatting update to the selected element
   const applyFormat = (updates) => {
-    if (!sel || !selectedElementPage) return
+    if (!sel || !selectedElementPage) return;
 
     if (sel.isExtracted && !sel.isEdited) {
       // Commit the extracted block first, then update
-      commitExtractedEdit(selectedElementPage, sel, sel.str)
-      updateTextBlock(selectedElementPage, `edited-${sel.id}`, updates)
+      commitExtractedEdit(selectedElementPage, sel, sel.str);
+      updateTextBlock(selectedElementPage, `edited-${sel.id}`, updates);
     } else {
-      updateTextBlock(selectedElementPage, sel.id, updates)
+      updateTextBlock(selectedElementPage, sel.id, updates);
     }
-  }
+  };
 
   const handleFontFamily = (f) => {
-    setFontFamily(f)
+    setFontFamily(f);
     // Map display name to CSS stack
     const cssMap = {
-      'Arial':          'Arial, "Noto Sans", Helvetica, sans-serif',
-      'Helvetica':      'Helvetica, Arial, sans-serif',
-      'Times New Roman':'"Times New Roman", "Noto Serif", Times, serif',
-      'Georgia':        'Georgia, "Noto Serif", serif',
-      'Courier New':    '"Courier New", Courier, monospace',
-      'Verdana':        'Verdana, Arial, sans-serif',
-      'Tahoma':         'Tahoma, Arial, sans-serif',
-      'Trebuchet MS':   '"Trebuchet MS", Arial, sans-serif',
-      'Calibri':        'Calibri, Arial, sans-serif',
-      'Cambria':        'Cambria, Georgia, serif',
-      'Garamond':       'Garamond, Georgia, serif',
-      'Palatino':       '"Palatino Linotype", Georgia, serif',
-    }
-    applyFormat({ fontFamily: cssMap[f] || f, fontName: f })
-  }
+      Arial: 'Arial, "Noto Sans", Helvetica, sans-serif',
+      Helvetica: "Helvetica, Arial, sans-serif",
+      "Times New Roman": '"Times New Roman", "Noto Serif", Times, serif',
+      Georgia: 'Georgia, "Noto Serif", serif',
+      "Courier New": '"Courier New", Courier, monospace',
+      Verdana: "Verdana, Arial, sans-serif",
+      Tahoma: "Tahoma, Arial, sans-serif",
+      "Trebuchet MS": '"Trebuchet MS", Arial, sans-serif',
+      Calibri: "Calibri, Arial, sans-serif",
+      Cambria: "Cambria, Georgia, serif",
+      Garamond: "Garamond, Georgia, serif",
+      Palatino: '"Palatino Linotype", Georgia, serif',
+    };
+    applyFormat({ fontFamily: cssMap[f] || f, fontName: f });
+  };
 
   const handleFontSize = (v) => {
-    const n = Math.max(4, Math.min(200, Number(v)))
-    setFontSize(n)
-    applyFormat({ fontSize: n })
-  }
+    const n = Math.max(4, Math.min(200, Number(v)));
+    setFontSize(n);
+    applyFormat({ fontSize: n });
+  };
 
   const handleBold = () => {
-    const next = !bold
-    setBold(next)
-    applyFormat({ fontBold: next })
-  }
+    const next = !bold;
+    setBold(next);
+    applyFormat({ fontBold: next });
+  };
 
   const handleItalic = () => {
-    const next = !italic
-    setItalic(next)
-    applyFormat({ fontItalic: next })
-  }
+    const next = !italic;
+    setItalic(next);
+    applyFormat({ fontItalic: next });
+  };
 
   const handleUnderline = () => {
-    const next = !underline
-    setUnderline(next)
-    applyFormat({ fontUnderline: next })
-  }
+    const next = !underline;
+    setUnderline(next);
+    applyFormat({ fontUnderline: next });
+  };
 
   const handleColor = (v) => {
-    setColor(v)
-    applyFormat({ color: v })
-  }
+    setColor(v);
+    applyFormat({ color: v });
+  };
 
   const handleUndo = () => {
-    if (!undoEdit()) { toast('Nothing to undo'); return }
-    toast('Undone', { duration: 800 })
-  }
+    if (!undoEdit()) {
+      toast("Nothing to undo");
+      return;
+    }
+    toast("Undone", { duration: 800 });
+  };
 
   const handleRedo = () => {
-    if (!redoEdit()) { toast('Nothing to redo'); return }
-    toast('Redone', { duration: 800 })
-  }
+    if (!redoEdit()) {
+      toast("Nothing to redo");
+      return;
+    }
+    toast("Redone", { duration: 800 });
+  };
 
   const handleExport = async () => {
-    if (!file) { toast.error('No PDF loaded'); return }
-    const tid = toast.loading('Exporting PDF...')
-    try {
-      const bytes = await exportPdf(file, editLayers, pageCount, pageBgs, blockBgs)
-      downloadBytes(bytes, `pdfzero-${fileName || 'edited.pdf'}`)
-      toast.success('PDF downloaded!', { id: tid })
-    } catch (e) {
-      toast.error('Export failed: ' + e.message, { id: tid })
+    if (!file) {
+      toast.error("No PDF loaded");
+      return;
     }
-  }
+    const tid = toast.loading("Exporting PDF...");
+    try {
+      const bytes = await exportPdf(
+        file,
+        editLayers,
+        pageCount,
+        pageBgs,
+        blockBgs,
+      );
+      downloadBytes(bytes, `pdfzero-${fileName || "edited.pdf"}`);
+      toast.success("PDF downloaded!", { id: tid });
+    } catch (e) {
+      toast.error("Export failed: " + e.message, { id: tid });
+    }
+  };
 
   const handleOcr = async () => {
-    if (!file || ocrRunning) return
-    setOcrRunning(true); setOcrProgress(0)
-    const tid = toast.loading('Starting OCR...')
+    if (!file || ocrRunning) return;
+    setOcrRunning(true);
+    setOcrProgress(0);
+    const tid = toast.loading("Starting OCR...");
     try {
-      const { canvas } = await renderPage(currentPage, 1)
-      const words = await ocrCanvas(canvas, pct => {
-        setOcrProgress(pct)
-        toast.loading(`OCR: ${pct}%`, { id: tid })
-      })
-      if (!words.length) { toast.error('No text found', { id: tid }); return }
-      words.forEach(w => addTextBlock(currentPage, w))
-      toast.success(`Found ${words.length} words`, { id: tid })
+      const { canvas } = await renderPage(currentPage, 1);
+      const words = await ocrCanvas(canvas, (pct) => {
+        setOcrProgress(pct);
+        toast.loading(`OCR: ${pct}%`, { id: tid });
+      });
+      if (!words.length) {
+        toast.error("No text found", { id: tid });
+        return;
+      }
+      words.forEach((w) => addTextBlock(currentPage, w));
+      toast.success(`Found ${words.length} words`, { id: tid });
     } catch (e) {
-      toast.error('OCR failed: ' + e.message, { id: tid })
-    } finally { setOcrRunning(false); setOcrProgress(0) }
-  }
+      toast.error("OCR failed: " + e.message, { id: tid });
+    } finally {
+      setOcrRunning(false);
+      setOcrProgress(0);
+    }
+  };
 
-  const hasSelection = !!sel
+  const hasSelection = !!sel;
 
   return (
     <div className={styles.toolbar}>
       {/* Mobile-only: toggle the Pages drawer (hidden on desktop, panel is always visible there) */}
       <button
-        className={`${styles.toolBtn} ${styles.mobileOnly} ${mobilePagesOpen ? styles.active : ''}`}
+        className={`${styles.toolBtn} ${styles.mobileOnly} ${mobilePagesOpen ? styles.active : ""}`}
         onClick={() => setMobilePagesOpen(!mobilePagesOpen)}
-        title="Pages" aria-label="Toggle pages panel"
+        title="Pages"
+        aria-label="Toggle pages panel"
       >
         <PanelLeft size={16} />
       </button>
@@ -189,9 +428,12 @@ export default function EditorToolbar() {
       {/* Drawing tools */}
       <div className={styles.toolGroup}>
         {TOOLS.map(({ id, icon: Icon, label }) => (
-          <button key={id}
-            className={`${styles.toolBtn} ${activeTool === id ? styles.active : ''}`}
-            onClick={() => setActiveTool(id)} title={label} aria-label={label}
+          <button
+            key={id}
+            className={`${styles.toolBtn} ${activeTool === id ? styles.active : ""}`}
+            onClick={() => setActiveTool(id)}
+            title={label}
+            aria-label={label}
           >
             <Icon size={15} />
           </button>
@@ -204,12 +446,16 @@ export default function EditorToolbar() {
       <select
         className={`${styles.select} ${styles.desktopOnly}`}
         value={fontFamily}
-        onChange={e => handleFontFamily(e.target.value)}
+        onChange={(e) => handleFontFamily(e.target.value)}
         disabled={!hasSelection}
         title="Font family"
         aria-label="Font family"
       >
-        {FONTS.map(f => <option key={f} value={f}>{f}</option>)}
+        {FONTS.map((f) => (
+          <option key={f} value={f}>
+            {f}
+          </option>
+        ))}
       </select>
 
       {/* Font size */}
@@ -217,16 +463,17 @@ export default function EditorToolbar() {
         type="number"
         className={`${styles.numInput} ${styles.desktopOnly}`}
         value={fontSize}
-        min={4} max={200}
+        min={4}
+        max={200}
         disabled={!hasSelection}
-        onChange={e => handleFontSize(e.target.value)}
+        onChange={(e) => handleFontSize(e.target.value)}
         title="Font size"
         aria-label="Font size"
       />
 
       {/* Bold */}
       <button
-        className={`${styles.fmtBtn} ${styles.desktopOnly} ${bold ? styles.fmtActive : ''}`}
+        className={`${styles.fmtBtn} ${styles.desktopOnly} ${bold ? styles.fmtActive : ""}`}
         onClick={handleBold}
         disabled={!hasSelection}
         title="Bold (affects export)"
@@ -238,7 +485,7 @@ export default function EditorToolbar() {
 
       {/* Italic */}
       <button
-        className={`${styles.fmtBtn} ${styles.desktopOnly} ${italic ? styles.fmtActive : ''}`}
+        className={`${styles.fmtBtn} ${styles.desktopOnly} ${italic ? styles.fmtActive : ""}`}
         onClick={handleItalic}
         disabled={!hasSelection}
         title="Italic (affects export)"
@@ -250,7 +497,7 @@ export default function EditorToolbar() {
 
       {/* Underline — CSS only, marks in store */}
       <button
-        className={`${styles.fmtBtn} ${styles.desktopOnly} ${underline ? styles.fmtActive : ''}`}
+        className={`${styles.fmtBtn} ${styles.desktopOnly} ${underline ? styles.fmtActive : ""}`}
         onClick={handleUnderline}
         disabled={!hasSelection}
         title="Underline"
@@ -268,7 +515,7 @@ export default function EditorToolbar() {
         className={`${styles.colorPicker} ${styles.desktopOnly}`}
         value={color}
         disabled={!hasSelection}
-        onChange={e => handleColor(e.target.value)}
+        onChange={(e) => handleColor(e.target.value)}
         title="Text color"
         aria-label="Text color"
       />
@@ -276,32 +523,81 @@ export default function EditorToolbar() {
       <div className={styles.sep} />
 
       {/* Undo / Redo */}
-      <button className={styles.toolBtn} onClick={handleUndo} title="Undo (Ctrl+Z)" aria-label="Undo">
+      <button
+        className={styles.toolBtn}
+        onClick={handleUndo}
+        title="Undo (Ctrl+Z)"
+        aria-label="Undo"
+      >
         <Undo2 size={15} />
       </button>
-      <button className={styles.toolBtn} onClick={handleRedo} title="Redo (Ctrl+Y)" aria-label="Redo">
+      <button
+        className={styles.toolBtn}
+        onClick={handleRedo}
+        title="Redo (Ctrl+Y)"
+        aria-label="Redo"
+      >
         <Redo2 size={15} />
       </button>
 
       <div className={styles.sep} />
 
       {/* Zoom */}
-      <button className={styles.toolBtn} onClick={() => setZoom(zoom - 0.2)} title="Zoom out"><ZoomOut size={15} /></button>
+      <button
+        className={styles.toolBtn}
+        onClick={() => setZoom(zoom - 0.2)}
+        title="Zoom out"
+      >
+        <ZoomOut size={15} />
+      </button>
       <span className={styles.zoomLabel}>{Math.round(zoom * 100)}%</span>
-      <button className={styles.toolBtn} onClick={() => setZoom(zoom + 0.2)} title="Zoom in"><ZoomIn size={15} /></button>
+      <button
+        className={styles.toolBtn}
+        onClick={() => setZoom(zoom + 0.2)}
+        title="Zoom in"
+      >
+        <ZoomIn size={15} />
+      </button>
 
       <div className={styles.spacer} />
 
       <button
-        className={`${styles.aiBtn} ${ocrRunning ? styles.aiBtnActive : ''}`}
-        onClick={handleOcr} disabled={ocrRunning || !file}
+        className={`${styles.aiBtn} ${ocrRunning ? styles.aiBtnActive : ""}`}
+        onClick={handleOcr}
+        disabled={ocrRunning || !file}
       >
-        {ocrRunning
-          ? <><Loader2 size={13} className={styles.spin} /> OCR {ocrProgress}%</>
-          : <><Scan size={13} /> OCR</>}
+        {ocrRunning ? (
+          <>
+            <Loader2 size={13} className={styles.spin} /> OCR {ocrProgress}%
+          </>
+        ) : (
+          <>
+            <Scan size={13} /> OCR
+          </>
+        )}
       </button>
 
-      <button className={styles.aiBtn} onClick={() => toast('AI font match — v1.1', { icon: '✨' })}>
+      <button
+        className={`${styles.aiBtn} ${translatingPage ? styles.aiBtnActive : ""}`}
+        onClick={handleTranslatePage}
+        disabled={translatingPage || !file}
+        title="Translate every text block on this page (EN↔ES)"
+      >
+        {translatingPage ? (
+          <>
+            <Loader2 size={13} className={styles.spin} /> Translating page…
+          </>
+        ) : (
+          <>
+            <Languages size={13} /> Translate
+          </>
+        )}
+      </button>
+
+      <button
+        className={styles.aiBtn}
+        onClick={() => toast("AI font match — v1.1", { icon: "✨" })}
+      >
         <Sparkles size={13} /> AI fix
       </button>
 
@@ -311,16 +607,21 @@ export default function EditorToolbar() {
 
       {/* Mobile-only: toggle the Properties drawer */}
       <button
-        className={`${styles.toolBtn} ${styles.mobileOnly} ${mobilePropertiesOpen ? styles.active : ''}`}
+        className={`${styles.toolBtn} ${styles.mobileOnly} ${mobilePropertiesOpen ? styles.active : ""}`}
         onClick={() => setMobilePropertiesOpen(!mobilePropertiesOpen)}
-        title="Properties" aria-label="Toggle properties panel"
+        title="Properties"
+        aria-label="Toggle properties panel"
       >
         <SlidersHorizontal size={16} />
       </button>
 
-      <button className={styles.exportBtn} onClick={handleExport} disabled={!file}>
+      <button
+        className={styles.exportBtn}
+        onClick={handleExport}
+        disabled={!file}
+      >
         <Download size={14} /> Download PDF
       </button>
     </div>
-  )
+  );
 }

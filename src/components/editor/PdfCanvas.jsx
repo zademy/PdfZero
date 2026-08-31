@@ -35,6 +35,7 @@ export default function PdfCanvas() {
     extractedEdits,
     setPageBg: storeSetPageBg,
     setBlockBgs,
+    setExtractedItems,
   } = usePdfStore();
 
   const canvasRef = useRef(null);
@@ -101,9 +102,12 @@ export default function PdfCanvas() {
     setTextItems([]);
     setEditingId(null);
     extractTextItems(currentPage)
-      .then(setTextItems)
+      .then((items) => {
+        setTextItems(items);
+        setExtractedItems(currentPage, items);
+      })
       .catch(() => setTextItems([]));
-  }, [file, currentPage]);
+  }, [file, currentPage, setExtractedItems]);
 
   useEffect(() => {
     if (!textItems.length || !canvasRef.current || isRendering) return;

@@ -24,6 +24,124 @@ const EXPLICIT_PROMPT = [
   "Preserve the line breaks and whitespace structure of the input exactly.",
 ].join(" ");
 
+const PAGE_SYSTEM_PROMPT = [
+  "You are a precise professional translator.",
+  "The user message is a JSON array of text segments from ONE document page, in reading order.",
+  "Translate every segment: English into Spanish, or Spanish into English, so the whole page reads as one coherent document.",
+  "Keep terminology and proper nouns consistent across all segments.",
+  "Each segment has a 'budget' (max characters). Your translation for that id MUST NOT exceed its budget — compress politely (drop filler, never meaning) if needed.",
+  "CRITICAL: each output must contain ONLY its own segment's content. Never merge, split, or move content across segments — even when two segments form one visual line, heading, or sentence. Segment i's translation maps to segment i's box on the page.",
+  "Preserve each segment's line breaks.",
+  "Respond with ONLY a JSON object mapping every id to its translation.",
+  "No markdown fences, no commentary, no explanations.",
+].join(" ");
+
+const PAGE_MAX_TOKENS = 16384;
+
+const CONDENSE_SYSTEM_PROMPT = [
+  "You compress translations so they fit inside character budgets.",
+  "The user message is a JSON array of objects: {id, text, budget}.",
+  "For every id, return a version of `text` whose length is AT MOST its budget characters.",
+  "Preserve the meaning and the language; drop filler words, abbreviate politely, never cut mid-word.",
+  "If the text already fits, return it unchanged.",
+  "Respond with ONLY a JSON object mapping every id to the compressed text.",
+  "No markdown fences, no commentary.",
+].join(" ");
+
+// Shorten translations that exceed their character budgets. One request.
+// items: [{ id, text, budget }] → { ok, translations: {id: text} } | { ok:false, ... }
+export async function condenseTranslations(items) {
+  const list = (items || []).filter(
+    (e) => e && e.id && typeof e.text === "string",
+  );
+  if (!list.length) {
+    return { ok: true, translations: {} };
+  }
+
+  const apiKey = getGlmApiKey();
+  if (!apiKey) {
+    return {
+      ok: false,
+      code: "MISSING_KEY",
+      message: "Translation API key missing.",
+    };
+  }
+
+  let response;
+  try {
+    response = await fetch(GLM_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: GLM_MODEL,
+        messages: [
+          { role: "system", content: CONDENSE_SYSTEM_PROMPT },
+          {
+            role: "user",
+            content: JSON.stringify(
+              list.map(({ id, text, budget }) => ({ id, text, budget })),
+            ),
+          },
+        ],
+        thinking: { type: "disabled" },
+        temperature: 0.2,
+        stream: false,
+        max_tokens: PAGE_MAX_TOKENS,
+      }),
+    });
+  } catch (_) {
+    return {
+      ok: false,
+      code: "NETWORK",
+      message: "Could not reach the translation service.",
+    };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      code: "API_ERROR",
+      message: `Translation service error (HTTP ${response.status}).`,
+    };
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch (_) {
+    return {
+      ok: false,
+      code: "BAD_RESPONSE",
+      message: "Unreadable response from the translation service.",
+    };
+  }
+
+  const map = parseBatchMap(data?.choices?.[0]?.message?.content);
+  if (!map) {
+    return {
+      ok: false,
+      code: "BAD_RESPONSE",
+      message: "Compression service returned malformed data.",
+    };
+  }
+
+  const translations = {};
+  for (const { id, text } of list) {
+    const candidate = map[id];
+    // Only accept candidates that are strings; prefer ones that actually fit
+    if (typeof candidate === "string" && candidate.trim()) {
+      translations[id] =
+        candidate.trim().length <= text.length ? candidate.trim() : text;
+    } else {
+      translations[id] = text;
+    }
+  }
+  return { ok: true, translations };
+}
+
 export function getGlmApiKey() {
   return import.meta.env?.VITE_GLM_API_KEY || "";
 }
@@ -115,4 +233,141 @@ export async function translateText(text) {
   }
 
   return result;
+}
+
+// ── Page-level batch translation ─────────────────────────────────────────────
+// Reading order: top-to-bottom, then left-to-right (PDF coordinate space where
+// smaller y is higher on the page — blocks here carry pdfjs-style overlay x/y).
+
+export function sortByReadingOrder(blocks) {
+  return [...(blocks || [])].sort((a, b) => {
+    const ay = a.y ?? 0;
+    const by = b.y ?? 0;
+    if (Math.abs(ay - by) > 4) return ay - by; // tolerance: same line
+    return (a.x ?? 0) - (b.x ?? 0);
+  });
+}
+
+function parseBatchMap(content) {
+  if (typeof content !== "string") return null;
+  const cleaned = content
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed;
+    }
+  } catch (_) {}
+  return null;
+}
+
+// entries: [{ id, text, budget }] in reading order.
+// Result:
+//   { ok: true, translations: {id: str}, fallbackUsed: [id], failed: [id] }
+//   { ok: false, code, message } — same error vocabulary as translateText.
+export async function translatePage(entries) {
+  const list = (entries || []).filter(
+    (e) => e && e.id && String(e.text ?? "").trim(),
+  );
+  if (!list.length) {
+    return {
+      ok: false,
+      code: "EMPTY_TEXT",
+      message: "Nothing to translate on this page.",
+    };
+  }
+
+  const apiKey = getGlmApiKey();
+  if (!apiKey) {
+    return {
+      ok: false,
+      code: "MISSING_KEY",
+      message:
+        "Translation API key missing. Set VITE_GLM_API_KEY in .env.local and restart the dev server.",
+    };
+  }
+
+  const payload = list.map(({ id, text, budget }) => ({ id, text, budget }));
+
+  let map = null;
+  let response;
+  try {
+    response = await fetch(GLM_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: GLM_MODEL,
+        messages: [
+          { role: "system", content: PAGE_SYSTEM_PROMPT },
+          { role: "user", content: JSON.stringify(payload) },
+        ],
+        thinking: { type: "disabled" },
+        temperature: 0.2,
+        stream: false,
+        max_tokens: PAGE_MAX_TOKENS,
+      }),
+    });
+  } catch (_) {
+    return {
+      ok: false,
+      code: "NETWORK",
+      message:
+        "Could not reach the translation service. Check your connection.",
+    };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      code: "API_ERROR",
+      message: `Translation service error (HTTP ${response.status}).`,
+    };
+  }
+
+  try {
+    const data = await response.json();
+    map = parseBatchMap(data?.choices?.[0]?.message?.content);
+  } catch (_) {
+    map = null;
+  }
+
+  const translations = {};
+  const needsFallback = [];
+
+  if (map) {
+    for (const { id, text } of list) {
+      const candidate = map[id];
+      if (
+        typeof candidate === "string" &&
+        candidate.trim() &&
+        candidate.trim() !== text.trim()
+      ) {
+        translations[id] = candidate.trim();
+      } else {
+        needsFallback.push(id);
+      }
+    }
+  } else {
+    needsFallback.push(...list.map((e) => e.id));
+  }
+
+  const fallbackUsed = [];
+  const failed = [];
+  for (const { id, text } of list) {
+    if (!needsFallback.includes(id)) continue;
+    const single = await translateText(text);
+    if (single.ok) {
+      translations[id] = single.translated;
+      fallbackUsed.push(id);
+    } else {
+      failed.push(id);
+    }
+  }
+
+  return { ok: true, translations, fallbackUsed, failed };
 }

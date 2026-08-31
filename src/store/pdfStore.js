@@ -1,20 +1,78 @@
-import { create } from 'zustand'
+import { create } from "zustand";
 
-const MAX_HISTORY = 100
+const MAX_HISTORY = 100;
 
 const cloneEditState = (s) => ({
   editLayers: JSON.parse(JSON.stringify(s.editLayers || {})),
   extractedEdits: JSON.parse(JSON.stringify(s.extractedEdits || {})),
-})
+});
 
 const pushHistory = (s) => ({
   historyPast: [...s.historyPast, cloneEditState(s)].slice(-MAX_HISTORY),
   historyFuture: [],
-})
+});
+
+// Build the overlay block that replaces an extracted original after an edit.
+// Carries ALL original block metadata (font, size, color, position) so export
+// can reproduce the text in the correct style and position.
+const buildEditedBlock = (originalBlock, newStr) => ({
+  x: originalBlock.x,
+  y: originalBlock.y,
+  width: originalBlock.width,
+  height: originalBlock.height,
+  fontSize: originalBlock.fontSize,
+  fontName: originalBlock.fontName,
+  fontFamily: originalBlock.fontFamily,
+  fontBold: originalBlock.fontBold,
+  fontItalic: originalBlock.fontItalic,
+  fontUnderline: originalBlock.fontUnderline,
+  stdFont: originalBlock.stdFont,
+  baselineOffset: originalBlock.baselineOffset,
+  ascent: originalBlock.ascent,
+  descent: originalBlock.descent,
+  scaleX: originalBlock.scaleX,
+  scaleY: originalBlock.scaleY,
+  rotation: originalBlock.rotation || 0,
+  lineHeight: originalBlock.lineHeight,
+  editBox: originalBlock.editBox,
+  glyphs: originalBlock.glyphs,
+  kerning: originalBlock.kerning,
+  kerningSource: originalBlock.kerningSource,
+  color: originalBlock.color || "#000000",
+  colorSpace: originalBlock.colorSpace || "DeviceRGB",
+  fillOpacity: originalBlock.fillOpacity ?? 1,
+  textRenderingMode: originalBlock.textRenderingMode ?? 0,
+  charSpacing: originalBlock.charSpacing ?? 0,
+  wordSpacing: originalBlock.wordSpacing ?? 0,
+  horizontalScale: originalBlock.horizontalScale ?? 1,
+  fontResource: originalBlock.fontResource,
+  internalFontName: originalBlock.internalFontName,
+  embeddedFontName: originalBlock.embeddedFontName,
+  fontWeight: originalBlock.fontWeight,
+  fontStyle: originalBlock.fontStyle,
+  str: newStr,
+  id: `edited-${originalBlock.id}`,
+  originalId: originalBlock.id,
+  originalStr: originalBlock.str,
+  isEdited: true,
+  isExtracted: false,
+  children: originalBlock.children,
+  originalX: originalBlock.x,
+  originalY: originalBlock.y,
+  originalWidth: originalBlock.width,
+  originalHeight: originalBlock.height,
+  originalFontSize: originalBlock.fontSize,
+  originalBaselineOffset: originalBlock.baselineOffset,
+  originalLineHeight: originalBlock.lineHeight,
+  maxEditWidth: originalBlock.maxEditWidth ?? originalBlock.width,
+  maxEditHeight: originalBlock.maxEditHeight ?? originalBlock.height,
+  exportStrategy: "overlay-fit",
+  visualDriftScore: null,
+});
 
 export const usePdfStore = create((set, get) => ({
   file: null,
-  fileName: '',
+  fileName: "",
   fileSize: 0,
   pageCount: 0,
   currentPage: 1,
@@ -25,6 +83,11 @@ export const usePdfStore = create((set, get) => ({
 
   // extractedEdits[pageNum][originalId] = newStr  — tracks committed edits
   extractedEdits: {},
+
+  // extractedItems[pageNum] = text items extracted from the rendered page —
+  // published by the canvas so page-level tools (e.g. Translate page) can
+  // assemble batches without reaching into component state.
+  extractedItems: {},
   historyPast: [],
   historyFuture: [],
 
@@ -43,228 +106,254 @@ export const usePdfStore = create((set, get) => ({
   mobilePagesOpen: false,
   mobilePropertiesOpen: false,
 
-  setFile:           (file, fileName, fileSize) => set({ file, fileName, fileSize }),
-  setPageCount:      (pageCount)   => set({ pageCount }),
-  setCurrentPage:    (p)           => set({ currentPage: p, selectedElement: null, selectedElementPage: null }),
-  setZoom:           (z)           => set({ zoom: Math.max(0.25, Math.min(3.0, Math.round(z * 100) / 100)) }),
-  setActiveTool:     (t)           => set({ activeTool: t, selectedElement: null, selectedElementPage: null }),
-  setPageBg: (pageNum, bg) => set(s => ({ pageBgs: { ...s.pageBgs, [pageNum]: bg } })),
+  setFile: (file, fileName, fileSize) => set({ file, fileName, fileSize }),
+  setPageCount: (pageCount) => set({ pageCount }),
+  setCurrentPage: (p) =>
+    set({ currentPage: p, selectedElement: null, selectedElementPage: null }),
+  setZoom: (z) =>
+    set({ zoom: Math.max(0.25, Math.min(3.0, Math.round(z * 100) / 100)) }),
+  setActiveTool: (t) =>
+    set({ activeTool: t, selectedElement: null, selectedElementPage: null }),
+  setPageBg: (pageNum, bg) =>
+    set((s) => ({ pageBgs: { ...s.pageBgs, [pageNum]: bg } })),
   // Bulk-merge per-block local backgrounds for one page in a single update
-  setBlockBgs: (pageNum, bgMap) => set(s => ({
-    blockBgs: { ...s.blockBgs, [pageNum]: { ...(s.blockBgs[pageNum] || {}), ...bgMap } }
-  })),
-  setSelectedElement:(el, page)    => set({ selectedElement: el, selectedElementPage: page }),
+  setBlockBgs: (pageNum, bgMap) =>
+    set((s) => ({
+      blockBgs: {
+        ...s.blockBgs,
+        [pageNum]: { ...(s.blockBgs[pageNum] || {}), ...bgMap },
+      },
+    })),
+  setSelectedElement: (el, page) =>
+    set({ selectedElement: el, selectedElementPage: page }),
 
-  setMobilePagesOpen: (open) => set({
-    mobilePagesOpen: open,
-    mobilePropertiesOpen: open ? false : get().mobilePropertiesOpen,
-  }),
-  setMobilePropertiesOpen: (open) => set({
-    mobilePropertiesOpen: open,
-    mobilePagesOpen: open ? false : get().mobilePagesOpen,
-  }),
-  closeMobilePanels: () => set({ mobilePagesOpen: false, mobilePropertiesOpen: false }),
+  setMobilePagesOpen: (open) =>
+    set({
+      mobilePagesOpen: open,
+      mobilePropertiesOpen: open ? false : get().mobilePropertiesOpen,
+    }),
+  setMobilePropertiesOpen: (open) =>
+    set({
+      mobilePropertiesOpen: open,
+      mobilePagesOpen: open ? false : get().mobilePagesOpen,
+    }),
+  closeMobilePanels: () =>
+    set({ mobilePagesOpen: false, mobilePropertiesOpen: false }),
 
   getLayer: (pageNum) => {
-    const { editLayers } = get()
-    return editLayers[pageNum] || { texts: [], annotations: [] }
+    const { editLayers } = get();
+    return editLayers[pageNum] || { texts: [], annotations: [] };
   },
 
   // Add a brand-new user text box
-  addTextBlock: (pageNum, block) => set((s) => {
-    const layer = s.editLayers[pageNum] || { texts: [], annotations: [] }
-    return {
-      ...pushHistory(s),
-      editLayers: {
-        ...s.editLayers,
-        [pageNum]: { ...layer, texts: [...layer.texts, block] },
-      },
-    }
-  }),
+  addTextBlock: (pageNum, block) =>
+    set((s) => {
+      const layer = s.editLayers[pageNum] || { texts: [], annotations: [] };
+      return {
+        ...pushHistory(s),
+        editLayers: {
+          ...s.editLayers,
+          [pageNum]: { ...layer, texts: [...layer.texts, block] },
+        },
+      };
+    }),
 
   // Update a user-added block in the layer
-  updateTextBlock: (pageNum, id, updates) => set((s) => {
-    const layer = s.editLayers[pageNum]
-    if (!layer) return {}
-    const existing = layer.texts.find(t => t.id === id)
-    if (!existing) return {}
-    const updated = { ...existing, ...updates }
-    return {
-      ...pushHistory(s),
-      editLayers: {
-        ...s.editLayers,
-        [pageNum]: {
-          ...layer,
-          texts: layer.texts.map(t => t.id === id ? updated : t),
+  updateTextBlock: (pageNum, id, updates) =>
+    set((s) => {
+      const layer = s.editLayers[pageNum];
+      if (!layer) return {};
+      const existing = layer.texts.find((t) => t.id === id);
+      if (!existing) return {};
+      const updated = { ...existing, ...updates };
+      return {
+        ...pushHistory(s),
+        editLayers: {
+          ...s.editLayers,
+          [pageNum]: {
+            ...layer,
+            texts: layer.texts.map((t) => (t.id === id ? updated : t)),
+          },
         },
-      },
-      ...(s.selectedElement?.id === id && s.selectedElementPage === pageNum
-        ? { selectedElement: updated }
-        : {}),
-    }
-  }),
+        ...(s.selectedElement?.id === id && s.selectedElementPage === pageNum
+          ? { selectedElement: updated }
+          : {}),
+      };
+    }),
 
-  removeTextBlock: (pageNum, id) => set((s) => {
-    const layer = s.editLayers[pageNum]
-    if (!layer) return {}
-    if (!layer.texts.some(t => t.id === id)) return {}
-    return {
-      ...pushHistory(s),
-      editLayers: {
-        ...s.editLayers,
-        [pageNum]: { ...layer, texts: layer.texts.filter(t => t.id !== id) },
-      },
-      ...(s.selectedElement?.id === id && s.selectedElementPage === pageNum
-        ? { selectedElement: null, selectedElementPage: null }
-        : {}),
-    }
-  }),
+  removeTextBlock: (pageNum, id) =>
+    set((s) => {
+      const layer = s.editLayers[pageNum];
+      if (!layer) return {};
+      if (!layer.texts.some((t) => t.id === id)) return {};
+      return {
+        ...pushHistory(s),
+        editLayers: {
+          ...s.editLayers,
+          [pageNum]: {
+            ...layer,
+            texts: layer.texts.filter((t) => t.id !== id),
+          },
+        },
+        ...(s.selectedElement?.id === id && s.selectedElementPage === pageNum
+          ? { selectedElement: null, selectedElementPage: null }
+          : {}),
+      };
+    }),
 
   // Called when user finishes editing an EXTRACTED block.
   // Stores the edit in editLayers AND marks original for whiteout on export.
   // Carries ALL original block metadata (font, size, color, position) so export
   // can reproduce the text in the correct style and position.
-  commitExtractedEdit: (pageNum, originalBlock, newStr) => set((s) => {
-    const layer = s.editLayers[pageNum] || { texts: [], annotations: [] }
-    const edits = s.extractedEdits[pageNum] || {}
-    const editId = `edited-${originalBlock.id}`
+  commitExtractedEdit: (pageNum, originalBlock, newStr) =>
+    set((s) => {
+      const layer = s.editLayers[pageNum] || { texts: [], annotations: [] };
+      const edits = s.extractedEdits[pageNum] || {};
+      const editId = `edited-${originalBlock.id}`;
+      const editedBlock = buildEditedBlock(originalBlock, newStr);
 
-    // All original style info preserved — only str changes
-    const editedBlock = {
-      // Position & size from original
-      x:          originalBlock.x,
-      y:          originalBlock.y,
-      width:      originalBlock.width,
-      height:     originalBlock.height,
-      // Font metadata — critical for export
-      fontSize:   originalBlock.fontSize,
-      fontName:   originalBlock.fontName,
-      fontFamily: originalBlock.fontFamily,
-      fontBold:   originalBlock.fontBold,
-      fontItalic: originalBlock.fontItalic,
-      fontUnderline: originalBlock.fontUnderline,
-      stdFont:    originalBlock.stdFont,
-      baselineOffset: originalBlock.baselineOffset,
-      ascent:     originalBlock.ascent,
-      descent:    originalBlock.descent,
-      scaleX:     originalBlock.scaleX,
-      scaleY:     originalBlock.scaleY,
-      rotation:   originalBlock.rotation || 0,
-      lineHeight: originalBlock.lineHeight,
-      editBox:    originalBlock.editBox,
-      glyphs:     originalBlock.glyphs,
-      kerning:    originalBlock.kerning,
-      kerningSource: originalBlock.kerningSource,
-      // Color from original
-      color:      originalBlock.color || '#000000',
-      colorSpace: originalBlock.colorSpace || 'DeviceRGB',
-      fillOpacity: originalBlock.fillOpacity ?? 1,
-      textRenderingMode: originalBlock.textRenderingMode ?? 0,
-      charSpacing: originalBlock.charSpacing ?? 0,
-      wordSpacing: originalBlock.wordSpacing ?? 0,
-      horizontalScale: originalBlock.horizontalScale ?? 1,
-      fontResource: originalBlock.fontResource,
-      internalFontName: originalBlock.internalFontName,
-      embeddedFontName: originalBlock.embeddedFontName,
-      fontWeight: originalBlock.fontWeight,
-      fontStyle: originalBlock.fontStyle,
-      // Edited string
-      str:        newStr,
-      // Flags
-      id:         editId,
-      originalId: originalBlock.id,
-      originalStr: originalBlock.str,
-      isEdited:   true,
-      isExtracted:false,
-      // Preserve children info for multi-fragment whiteout
-      children:   originalBlock.children,
-      originalX:  originalBlock.x,
-      originalY:  originalBlock.y,
-      originalWidth: originalBlock.width,
-      originalHeight: originalBlock.height,
-      originalFontSize: originalBlock.fontSize,
-      originalBaselineOffset: originalBlock.baselineOffset,
-      originalLineHeight: originalBlock.lineHeight,
-      maxEditWidth: originalBlock.maxEditWidth ?? originalBlock.width,
-      maxEditHeight: originalBlock.maxEditHeight ?? originalBlock.height,
-      exportStrategy: 'overlay-fit',
-      visualDriftScore: null,
-    }
+      const existing = layer.texts.find((t) => t.id === editId);
+      const nextEditedBlock = existing
+        ? {
+            ...existing,
+            str: newStr,
+            originalX: existing.originalX ?? originalBlock.x,
+            originalY: existing.originalY ?? originalBlock.y,
+            originalWidth: existing.originalWidth ?? originalBlock.width,
+            originalHeight: existing.originalHeight ?? originalBlock.height,
+            originalFontSize:
+              existing.originalFontSize ?? originalBlock.fontSize,
+            originalBaselineOffset:
+              existing.originalBaselineOffset ?? originalBlock.baselineOffset,
+            originalLineHeight:
+              existing.originalLineHeight ?? originalBlock.lineHeight,
+            maxEditWidth:
+              existing.maxEditWidth ??
+              originalBlock.maxEditWidth ??
+              originalBlock.width,
+            maxEditHeight:
+              existing.maxEditHeight ??
+              originalBlock.maxEditHeight ??
+              originalBlock.height,
+            editBox: existing.editBox ?? originalBlock.editBox,
+            glyphs: existing.glyphs ?? originalBlock.glyphs,
+            kerning: existing.kerning ?? originalBlock.kerning,
+            fontResource: existing.fontResource ?? originalBlock.fontResource,
+          }
+        : editedBlock;
+      const newTexts = existing
+        ? layer.texts.map((t) => (t.id === editId ? nextEditedBlock : t))
+        : [...layer.texts, nextEditedBlock];
 
-    const existing = layer.texts.find(t => t.id === editId)
-    const nextEditedBlock = existing
-      ? {
-          ...existing,
-          str: newStr,
-          originalX: existing.originalX ?? originalBlock.x,
-          originalY: existing.originalY ?? originalBlock.y,
-          originalWidth: existing.originalWidth ?? originalBlock.width,
-          originalHeight: existing.originalHeight ?? originalBlock.height,
-          originalFontSize: existing.originalFontSize ?? originalBlock.fontSize,
-          originalBaselineOffset: existing.originalBaselineOffset ?? originalBlock.baselineOffset,
-          originalLineHeight: existing.originalLineHeight ?? originalBlock.lineHeight,
-          maxEditWidth: existing.maxEditWidth ?? originalBlock.maxEditWidth ?? originalBlock.width,
-          maxEditHeight: existing.maxEditHeight ?? originalBlock.maxEditHeight ?? originalBlock.height,
-          editBox: existing.editBox ?? originalBlock.editBox,
-          glyphs: existing.glyphs ?? originalBlock.glyphs,
-          kerning: existing.kerning ?? originalBlock.kerning,
-          fontResource: existing.fontResource ?? originalBlock.fontResource,
+      return {
+        ...pushHistory(s),
+        editLayers: {
+          ...s.editLayers,
+          [pageNum]: { ...layer, texts: newTexts },
+        },
+        extractedEdits: {
+          ...s.extractedEdits,
+          [pageNum]: { ...edits, [originalBlock.id]: newStr },
+        },
+        selectedElement: nextEditedBlock,
+        selectedElementPage: pageNum,
+      };
+    }),
+
+  setExtractedItems: (pageNum, items) =>
+    set((s) => ({
+      extractedItems: { ...s.extractedItems, [pageNum]: items || [] },
+    })),
+
+  // Apply a whole page of translations in ONE state update with ONE history
+  // push, so a single undo reverts the entire page translation.
+  // updates: [{ block, newStr, isExtracted }] — `block` is the ORIGINAL
+  // extracted item (isExtracted true) or the user-added overlay block itself.
+  applyPageTranslations: (pageNum, updates) =>
+    set((s) => {
+      if (!updates || updates.length === 0) {
+        return { selectedElement: null, selectedElementPage: null };
+      }
+      const layer = s.editLayers[pageNum] || { texts: [], annotations: [] };
+      const edits = s.extractedEdits[pageNum] || {};
+      let texts = [...layer.texts];
+      const newEdits = { ...edits };
+
+      for (const { block, newStr, isExtracted } of updates) {
+        if (!block || typeof newStr !== "string" || !newStr.trim()) continue;
+
+        if (isExtracted) {
+          const editId = `edited-${block.id}`;
+          const idx = texts.findIndex((t) => t.id === editId);
+          if (idx >= 0) {
+            texts[idx] = { ...texts[idx], str: newStr };
+          } else {
+            texts = [...texts, buildEditedBlock(block, newStr)];
+          }
+          newEdits[block.id] = newStr;
+        } else {
+          const idx = texts.findIndex((t) => t.id === block.id);
+          if (idx >= 0) texts[idx] = { ...texts[idx], str: newStr };
         }
-      : editedBlock
-    const newTexts = existing
-      ? layer.texts.map(t => t.id === editId ? nextEditedBlock : t)
-      : [...layer.texts, nextEditedBlock]
+      }
 
-    return {
-      ...pushHistory(s),
-      editLayers: {
-        ...s.editLayers,
-        [pageNum]: { ...layer, texts: newTexts },
-      },
-      extractedEdits: {
-        ...s.extractedEdits,
-        [pageNum]: { ...edits, [originalBlock.id]: newStr },
-      },
-      selectedElement: nextEditedBlock,
-      selectedElementPage: pageNum,
-    }
-  }),
+      return {
+        ...pushHistory(s),
+        editLayers: {
+          ...s.editLayers,
+          [pageNum]: { ...layer, texts },
+        },
+        extractedEdits: {
+          ...s.extractedEdits,
+          [pageNum]: newEdits,
+        },
+        selectedElement: null,
+        selectedElementPage: null,
+      };
+    }),
 
-  addAnnotation: (pageNum, annotation) => set((s) => {
-    const layer = s.editLayers[pageNum] || { texts: [], annotations: [] }
-    return {
-      ...pushHistory(s),
-      editLayers: {
-        ...s.editLayers,
-        [pageNum]: { ...layer, annotations: [...layer.annotations, annotation] },
-      },
-    }
-  }),
+  addAnnotation: (pageNum, annotation) =>
+    set((s) => {
+      const layer = s.editLayers[pageNum] || { texts: [], annotations: [] };
+      return {
+        ...pushHistory(s),
+        editLayers: {
+          ...s.editLayers,
+          [pageNum]: {
+            ...layer,
+            annotations: [...layer.annotations, annotation],
+          },
+        },
+      };
+    }),
 
   undoEdit: () => {
-    let didUndo = false
+    let didUndo = false;
     set((s) => {
-      const previous = s.historyPast[s.historyPast.length - 1]
-      if (!previous) return {}
-      didUndo = true
+      const previous = s.historyPast[s.historyPast.length - 1];
+      if (!previous) return {};
+      didUndo = true;
       return {
         editLayers: previous.editLayers,
         extractedEdits: previous.extractedEdits,
         historyPast: s.historyPast.slice(0, -1),
-        historyFuture: [cloneEditState(s), ...s.historyFuture].slice(0, MAX_HISTORY),
+        historyFuture: [cloneEditState(s), ...s.historyFuture].slice(
+          0,
+          MAX_HISTORY,
+        ),
         selectedElement: null,
         selectedElementPage: null,
-      }
-    })
-    return didUndo
+      };
+    });
+    return didUndo;
   },
 
   redoEdit: () => {
-    let didRedo = false
+    let didRedo = false;
     set((s) => {
-      const next = s.historyFuture[0]
-      if (!next) return {}
-      didRedo = true
+      const next = s.historyFuture[0];
+      if (!next) return {};
+      didRedo = true;
       return {
         editLayers: next.editLayers,
         extractedEdits: next.extractedEdits,
@@ -272,19 +361,32 @@ export const usePdfStore = create((set, get) => ({
         historyFuture: s.historyFuture.slice(1),
         selectedElement: null,
         selectedElementPage: null,
-      }
-    })
-    return didRedo
+      };
+    });
+    return didRedo;
   },
 
-  reset: () => set({
-    file: null, fileName: '', fileSize: 0, pageCount: 0, currentPage: 1,
-    zoom: 1.0, editLayers: {}, extractedEdits: {}, selectedElement: null,
-    selectedElementPage: null, activeTool: "select", pageBgs: {}, blockBgs: {},
-    historyPast: [], historyFuture: [],
-    mobilePagesOpen: false, mobilePropertiesOpen: false,
-  }),
-}))
+  reset: () =>
+    set({
+      file: null,
+      fileName: "",
+      fileSize: 0,
+      pageCount: 0,
+      currentPage: 1,
+      zoom: 1.0,
+      editLayers: {},
+      extractedEdits: {},
+      selectedElement: null,
+      selectedElementPage: null,
+      activeTool: "select",
+      pageBgs: {},
+      blockBgs: {},
+      historyPast: [],
+      historyFuture: [],
+      mobilePagesOpen: false,
+      mobilePropertiesOpen: false,
+    }),
+}));
 
 // ── pageBgs added separately so we don't rewrite the whole store ──
 // We store detected background colors per page so export can use correct whiteout
