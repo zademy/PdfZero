@@ -1,2 +1,12 @@
 /* TextBlock uses inline styles exclusively.
-   This file is kept for the import to not break. */
+   This file is kept for the import to not break — except the spinner
+   animation below, which cannot be expressed as an inline style. */
+.spin {
+  animation: tb-spin 0.9s linear infinite;
+}
+
+@keyframes tb-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

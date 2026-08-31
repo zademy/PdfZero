@@ -1,8 +1,15 @@
-import React, { useRef, useState, useEffect, useCallback, useMemo } from 'react'
-import { Trash2, Copy, Wand2 } from 'lucide-react'
-import toast from 'react-hot-toast'
-import { usePdfStore } from '../../store/pdfStore.js'
-import styles from './TextBlock.module.css'
+import React, {
+  useRef,
+  useState,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
+import { Trash2, Copy, Wand2, Languages, Loader2, Check } from "lucide-react";
+import toast from "react-hot-toast";
+import { usePdfStore } from "../../store/pdfStore.js";
+import { translateText } from "../../lib/translation.js";
+import styles from "./TextBlock.module.css";
 
 // ══════════════════════════════════════════════════════════════════════════════
 // Browser overlay model: a pragmatic approximation of professional PDF editing.
@@ -42,129 +49,176 @@ import styles from './TextBlock.module.css'
 // ══════════════════════════════════════════════════════════════════════════════
 
 export default function TextBlock({
-  block, pageNum,
+  block,
+  pageNum,
   isExtracted = false,
-  pageBg = 'white',
+  pageBg = "white",
   getLocalBg,
   forceEdit = false,
   onEditStart,
   onEditEnd,
 }) {
   const {
-    selectedElement, setSelectedElement,
-    updateTextBlock, removeTextBlock, commitExtractedEdit,
+    selectedElement,
+    setSelectedElement,
+    updateTextBlock,
+    removeTextBlock,
+    commitExtractedEdit,
     zoom,
-  } = usePdfStore()
+  } = usePdfStore();
 
-  const divRef = useRef(null)
-  const dragRef = useRef(null)
+  const divRef = useRef(null);
+  const dragRef = useRef(null);
 
-  const [editing, setEditing] = useState(false)
-  const [draftText, setDraftText] = useState(block.str)
-  const [hovered, setHovered] = useState(false)
-  const [pos, setPos] = useState({ x: block.x, y: block.y })
-  const [dragging, setDragging] = useState(false)
+  const [editing, setEditing] = useState(false);
+  const [draftText, setDraftText] = useState(block.str);
+  const [hovered, setHovered] = useState(false);
+  const [pos, setPos] = useState({ x: block.x, y: block.y });
+  const [dragging, setDragging] = useState(false);
 
-  const isSelected = selectedElement?.id === block.id
+  const isSelected = selectedElement?.id === block.id;
 
   // Sync from props
-  useEffect(() => { if (!dragging) setPos({ x: block.x, y: block.y }) }, [block.x, block.y, dragging])
-  useEffect(() => { if (!editing) setDraftText(block.str) }, [block.str, editing])
+  useEffect(() => {
+    if (!dragging) setPos({ x: block.x, y: block.y });
+  }, [block.x, block.y, dragging]);
+  useEffect(() => {
+    if (!editing) setDraftText(block.str);
+  }, [block.str, editing]);
 
   // forceEdit from parent (context toolbar "Edit" button)
   useEffect(() => {
-    if (forceEdit && !editing) startEdit()
-    else if (!forceEdit && editing) doCommit()
-  }, [forceEdit])
+    if (forceEdit && !editing) startEdit();
+    else if (!forceEdit && editing) doCommit();
+  }, [forceEdit]);
 
   // Focus when editing starts
   useEffect(() => {
-    if (!editing || !divRef.current) return
-    const el = divRef.current
+    if (!editing || !divRef.current) return;
+    const el = divRef.current;
     requestAnimationFrame(() => {
-      el.focus()
+      el.focus();
       // Cursor at end (Sejda default)
       try {
-        const range = document.createRange()
-        range.selectNodeContents(el)
-        range.collapse(false)
-        const sel = window.getSelection()
-        sel?.removeAllRanges()
-        sel?.addRange(range)
-      } catch (_) { }
-    })
-  }, [editing])
+        const range = document.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const sel = window.getSelection();
+        sel?.removeAllRanges();
+        sel?.addRange(range);
+      } catch (_) {}
+    });
+  }, [editing]);
 
   // Deselect → commit
-  useEffect(() => { if (!isSelected && editing) doCommit() }, [isSelected])
+  useEffect(() => {
+    if (!isSelected && editing) doCommit();
+  }, [isSelected]);
 
   const startEdit = () => {
-    setEditing(true)
-    onEditStart?.()
-  }
+    setEditing(true);
+    onEditStart?.();
+  };
 
   const doCommit = useCallback(() => {
-    if (!editing) return
-    setEditing(false)
-    onEditEnd?.()
-    const raw = divRef.current?.innerText ?? draftText
-    const newStr = raw.replace(/\n+$/, '').replace(/\r/g, '')
-    setDraftText(newStr)
-    if (newStr === block.str) return
+    if (!editing) return;
+    setEditing(false);
+    onEditEnd?.();
+    const raw = divRef.current?.innerText ?? draftText;
+    const newStr = raw.replace(/\n+$/, "").replace(/\r/g, "");
+    setDraftText(newStr);
+    if (newStr === block.str) return;
 
     if (isExtracted) {
-      commitExtractedEdit(pageNum, block, newStr)
-      toast.success('✓ Saved', { duration: 1000 })
+      commitExtractedEdit(pageNum, block, newStr);
+      toast.success("✓ Saved", { duration: 1000 });
     } else {
-      updateTextBlock(pageNum, block.id, { str: newStr })
+      updateTextBlock(pageNum, block.id, { str: newStr });
     }
-  }, [editing, draftText, block, isExtracted, pageNum, commitExtractedEdit, updateTextBlock, onEditEnd])
+  }, [
+    editing,
+    draftText,
+    block,
+    isExtracted,
+    pageNum,
+    commitExtractedEdit,
+    updateTextBlock,
+    onEditEnd,
+  ]);
 
   const doCancel = useCallback(() => {
-    setEditing(false)
-    onEditEnd?.()
-    setDraftText(block.str)
-    if (divRef.current) divRef.current.innerText = block.str
-  }, [block.str, onEditEnd])
+    setEditing(false);
+    onEditEnd?.();
+    setDraftText(block.str);
+    if (divRef.current) divRef.current.innerText = block.str;
+  }, [block.str, onEditEnd]);
 
-  const handleClick = (e) => { e.stopPropagation(); if (!isSelected) setSelectedElement(block, pageNum) }
-  const handleDoubleClick = (e) => { e.stopPropagation(); setSelectedElement(block, pageNum); startEdit() }
-  const handleMouseEnter = () => setHovered(true)
-  const handleMouseLeave = () => setHovered(false)
+  const handleClick = (e) => {
+    e.stopPropagation();
+    if (!isSelected) setSelectedElement(block, pageNum);
+  };
+  const handleDoubleClick = (e) => {
+    e.stopPropagation();
+    setSelectedElement(block, pageNum);
+    startEdit();
+  };
+  const handleMouseEnter = () => setHovered(true);
+  const handleMouseLeave = () => setHovered(false);
 
   const handleKeyDown = (e) => {
-    e.stopPropagation()
-    if (e.key === 'Escape') { e.preventDefault(); doCancel() }
-    if (e.key === 'Enter' && !e.shiftKey && editing) { e.preventDefault(); doCommit() }
-  }
+    e.stopPropagation();
+    if (e.key === "Escape") {
+      e.preventDefault();
+      doCancel();
+    }
+    if (e.key === "Enter" && !e.shiftKey && editing) {
+      e.preventDefault();
+      doCommit();
+    }
+  };
 
   const handleBlur = (e) => {
-    if (divRef.current?.contains(e.relatedTarget)) return
-    doCommit()
-  }
+    if (divRef.current?.contains(e.relatedTarget)) return;
+    doCommit();
+  };
 
   // Drag
   const handleMouseDown = (e) => {
-    if (editing) return
-    e.preventDefault(); e.stopPropagation()
-    dragRef.current = { ox: e.clientX / zoom - pos.x, oy: e.clientY / zoom - pos.y }
-    setDragging(true)
-  }
+    if (editing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    dragRef.current = {
+      ox: e.clientX / zoom - pos.x,
+      oy: e.clientY / zoom - pos.y,
+    };
+    setDragging(true);
+  };
 
   useEffect(() => {
-    if (!dragging) return
-    const onMove = (e) => setPos({ x: e.clientX / zoom - dragRef.current.ox, y: e.clientY / zoom - dragRef.current.oy })
-    const onUp = () => { setDragging(false); if (!isExtracted) updateTextBlock(pageNum, block.id, { x: pos.x, y: pos.y }) }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    return () => { window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp) }
-  }, [dragging, zoom, pos, pageNum, block.id, isExtracted, updateTextBlock])
+    if (!dragging) return;
+    const onMove = (e) =>
+      setPos({
+        x: e.clientX / zoom - dragRef.current.ox,
+        y: e.clientY / zoom - dragRef.current.oy,
+      });
+    const onUp = () => {
+      setDragging(false);
+      if (!isExtracted)
+        updateTextBlock(pageNum, block.id, { x: pos.x, y: pos.y });
+    };
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [dragging, zoom, pos, pageNum, block.id, isExtracted, updateTextBlock]);
 
   // ── Typography ─────────────────────────────────────────────────────────────
-  const fontFamily = block.fontFamily || 'Arial, Helvetica, sans-serif'
-  const fontWeight = block.fontBold ? 700 : 400
-  const fontStyle = block.fontItalic ? 'italic' : 'normal'
-  const fontSize = Math.max(block.fontSize || 12, 4)
+  const fontFamily = block.fontFamily || "Arial, Helvetica, sans-serif";
+  const fontWeight = block.fontBold ? 700 : 400;
+  const fontStyle = block.fontItalic ? "italic" : "normal";
+  const fontSize = Math.max(block.fontSize || 12, 4);
 
   // ── Visibility model (SEJDA-STYLE — local background matching) ──────────
   //
@@ -189,68 +243,103 @@ export default function TextBlock({
   // user-added (isEdited or new block):
   //   opacity:1, background:LOCAL_BG — blends seamlessly with surrounding PDF.
 
-  const isUserAdded = !isExtracted || block.isEdited
+  const isUserAdded = !isExtracted || block.isEdited;
 
   // Sample the local background color at this block's position
   const localBg = useMemo(() => {
     if (getLocalBg) {
-      const w = block.width || fontSize * draftText.length * 0.6
-      const h = block.height || fontSize * 1.1
-      return getLocalBg(pos.x, pos.y, w, h)
+      const w = block.width || fontSize * draftText.length * 0.6;
+      const h = block.height || fontSize * 1.1;
+      return getLocalBg(pos.x, pos.y, w, h);
     }
-    return pageBg || 'white'
-  }, [getLocalBg, pos.x, pos.y, block.width, block.height, fontSize, draftText.length, pageBg])
+    return pageBg || "white";
+  }, [
+    getLocalBg,
+    pos.x,
+    pos.y,
+    block.width,
+    block.height,
+    fontSize,
+    draftText.length,
+    pageBg,
+  ]);
 
   const fitOverflow = useMemo(() => {
-    const maxWidth = block.maxEditWidth || block.originalWidth || block.width
-    if (!maxWidth || (!block.isEdited && !isExtracted)) return false
-    const lines = String(draftText || '').replace(/\r/g, '').split('\n')
-    const avgAdvance = block.averageAdvance || (block.originalStr?.length ? maxWidth / block.originalStr.length : fontSize * 0.55)
-    const estimatedWidth = Math.max(...lines.map(line => line.length * avgAdvance), 0)
-    const lineHeight = block.lineHeight || block.height || fontSize * 1.1
-    const maxHeight = block.maxEditHeight || block.originalHeight || block.height || lineHeight
-    const estimatedHeight = Math.max(lines.length, 1) * lineHeight
-    return estimatedWidth > maxWidth * 1.08 || estimatedHeight > maxHeight * 1.12
+    const maxWidth = block.maxEditWidth || block.originalWidth || block.width;
+    if (!maxWidth || (!block.isEdited && !isExtracted)) return false;
+    const lines = String(draftText || "")
+      .replace(/\r/g, "")
+      .split("\n");
+    const avgAdvance =
+      block.averageAdvance ||
+      (block.originalStr?.length
+        ? maxWidth / block.originalStr.length
+        : fontSize * 0.55);
+    const estimatedWidth = Math.max(
+      ...lines.map((line) => line.length * avgAdvance),
+      0,
+    );
+    const lineHeight = block.lineHeight || block.height || fontSize * 1.1;
+    const maxHeight =
+      block.maxEditHeight || block.originalHeight || block.height || lineHeight;
+    const estimatedHeight = Math.max(lines.length, 1) * lineHeight;
+    return (
+      estimatedWidth > maxWidth * 1.08 || estimatedHeight > maxHeight * 1.12
+    );
   }, [
-    block.maxEditWidth, block.originalWidth, block.width, block.isEdited,
-    block.averageAdvance, block.originalStr, block.lineHeight, block.height,
-    block.maxEditHeight, block.originalHeight, isExtracted, draftText, fontSize,
-  ])
+    block.maxEditWidth,
+    block.originalWidth,
+    block.width,
+    block.isEdited,
+    block.averageAdvance,
+    block.originalStr,
+    block.lineHeight,
+    block.height,
+    block.maxEditHeight,
+    block.originalHeight,
+    isExtracted,
+    draftText,
+    fontSize,
+  ]);
 
-  let opacity = 1
-  let background = 'transparent'
-  let borderColor = 'transparent'
-  let cursor = 'default'
+  let opacity = 1;
+  let background = "transparent";
+  let borderColor = "transparent";
+  let cursor = "default";
 
   if (isUserAdded) {
     // Edited/new blocks — use local bg to blend with surrounding PDF content
-    opacity = 1
-    background = localBg
-    borderColor = editing ? '#3b82f6' : isSelected ? '#3b82f6' : 'rgba(232,69,69,0.35)'
-    cursor = editing ? 'text' : 'grab'
+    opacity = 1;
+    background = localBg;
+    borderColor = editing
+      ? "#3b82f6"
+      : isSelected
+        ? "#3b82f6"
+        : "rgba(232,69,69,0.35)";
+    cursor = editing ? "text" : "grab";
   } else if (editing) {
     // Editing extracted text — local bg covers canvas text cleanly
-    opacity = 1
-    background = localBg
-    borderColor = '#3b82f6'
-    cursor = 'text'
+    opacity = 1;
+    background = localBg;
+    borderColor = "#3b82f6";
+    cursor = "text";
   } else if (isSelected) {
-    opacity = 1
-    background = 'transparent'
-    borderColor = '#3b82f6'
-    cursor = 'grab'
+    opacity = 1;
+    background = "transparent";
+    borderColor = "#3b82f6";
+    cursor = "grab";
   } else if (hovered) {
     // Local bg covers canvas text — blends with PDF background
-    opacity = 1
-    background = localBg
-    borderColor = 'rgba(59,130,246,0.6)'
-    cursor = 'text'
+    opacity = 1;
+    background = localBg;
+    borderColor = "rgba(59,130,246,0.6)";
+    cursor = "text";
   } else {
     // Completely invisible — canvas renders perfectly, no overlay at all
-    opacity = 0
-    background = 'transparent'
-    borderColor = 'transparent'
-    cursor = 'default'
+    opacity = 0;
+    background = "transparent";
+    borderColor = "transparent";
+    cursor = "default";
   }
 
   // ── Feathered edges: soft blend for committed edits ──────────────────────
@@ -259,39 +348,39 @@ export default function TextBlock({
   // 2. slight padding extension → bg extends a bit beyond text
   // 3. transparent border → no visible hard line
   // This makes the patch invisible — it blends into the PDF background.
-  const isCommitted = isUserAdded && !editing && !isSelected
-  const featherPad = isCommitted ? 2 : 0   // px of extra padding for soft bg
+  const isCommitted = isUserAdded && !editing && !isSelected;
+  const featherPad = isCommitted ? 2 : 0; // px of extra padding for soft bg
   const featherShadow = isCommitted
-    ? `0 0 6px 4px ${localBg}`              // soft halo with local bg color
+    ? `0 0 6px 4px ${localBg}` // soft halo with local bg color
     : editing
-      ? '0 0 0 2px rgba(59,130,246,0.15)'   // blue glow when editing
-      : 'none'
+      ? "0 0 0 2px rgba(59,130,246,0.15)" // blue glow when editing
+      : "none";
 
   // Hide hard border for committed edits — the feathered bg replaces it
   if (isCommitted) {
-    borderColor = 'transparent'
+    borderColor = "transparent";
   }
 
   if (fitOverflow && (editing || isSelected)) {
-    borderColor = '#f97316'
+    borderColor = "#f97316";
   }
 
   // ── Width: grow right as you type, never wrap ──────────────────────────────
-  if (block.isEdited && !editing) background = 'transparent'
+  if (block.isEdited && !editing) background = "transparent";
 
-  const baseWidth = block.width || fontSize * draftText.length * 0.6
-  const visualTextBox = editing || block.isEdited || !isExtracted
+  const baseWidth = block.width || fontSize * draftText.length * 0.6;
+  const visualTextBox = editing || block.isEdited || !isExtracted;
   const widthStyle = visualTextBox
     ? {
-        width: 'max-content',
+        width: "max-content",
         minWidth: Math.max(fontSize * 0.75, 8),
-        maxWidth: 'none',
+        maxWidth: "none",
         clipPath: `inset(0 0 ${Math.max((block.height || fontSize) - fontSize * 1.08, 0)}px 0)`,
       }
-    : { width: baseWidth, minWidth: 'unset', maxWidth: 'none' }
+    : { width: baseWidth, minWidth: "unset", maxWidth: "none" };
   const heightStyle = visualTextBox
     ? { minHeight: Math.max(fontSize, 6) }
-    : { minHeight: Math.max(block.height || fontSize * 1.1, 6) }
+    : { minHeight: Math.max(block.height || fontSize * 1.1, 6) };
 
   return (
     <div
@@ -301,7 +390,7 @@ export default function TextBlock({
       spellCheck={editing}
       style={{
         // Layout
-        position: 'absolute',
+        position: "absolute",
         left: pos.x - featherPad,
         top: pos.y - featherPad,
         ...widthStyle,
@@ -317,29 +406,30 @@ export default function TextBlock({
         fontFamily,
         fontWeight,
         fontStyle,
-        textDecoration: block.fontUnderline ? 'underline' : 'none',
+        textDecoration: block.fontUnderline ? "underline" : "none",
         letterSpacing: 0,
         // Visibility
         opacity,
         background,
-        color: block.color || '#000000',
+        color: block.color || "#000000",
         border: `1.5px solid ${borderColor}`,
         borderRadius: isCommitted ? 2 : 1,
         // Interaction
         cursor,
-        userSelect: editing ? 'text' : 'none',
+        userSelect: editing ? "text" : "none",
         zIndex: editing ? 30 : block.isEdited ? 9 : isSelected ? 12 : 10,
         // No wrapping (grows right like Sejda)
-        whiteSpace: 'pre',
-        overflow: 'visible',
-        outline: 'none',
-        boxSizing: 'content-box',
+        whiteSpace: "pre",
+        overflow: "visible",
+        outline: "none",
+        boxSizing: "content-box",
         // Smooth visibility toggle
-        transition: editing ? 'none' : 'opacity 80ms, border-color 80ms',
+        transition: editing ? "none" : "opacity 80ms, border-color 80ms",
         // Feathered shadow for committed edits, blue glow when editing
-        boxShadow: fitOverflow && (editing || isSelected)
-          ? '0 0 0 2px rgba(249,115,22,0.18)'
-          : featherShadow,
+        boxShadow:
+          fitOverflow && (editing || isSelected)
+            ? "0 0 0 2px rgba(249,115,22,0.18)"
+            : featherShadow,
       }}
       onMouseDown={handleMouseDown}
       onMouseEnter={handleMouseEnter}
@@ -348,79 +438,310 @@ export default function TextBlock({
       onDoubleClick={handleDoubleClick}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
-      title={fitOverflow ? 'Text may overflow the original PDF run' : editing ? undefined : 'Double-click to edit'}
+      title={
+        fitOverflow
+          ? "Text may overflow the original PDF run"
+          : editing
+            ? undefined
+            : "Double-click to edit"
+      }
     >
-      <span style={{ position: 'relative', zIndex: 1 }}>{draftText}</span>
+      <span style={{ position: "relative", zIndex: 1 }}>{draftText}</span>
     </div>
-  )
+  );
 }
 
 // ── Context toolbar (sibling of TextBlock, not inside contentEditable) ────────
 // Button sizing follows Apple/Google's ~40px minimum touch-target guidance —
 // the previous 26px-tall buttons with 12px icons were comfortable with a
 // mouse cursor but too small to tap reliably with a finger.
-export function TextContextToolbar({ block, pageNum, pos, onEdit }) {
-  const { removeTextBlock, updateTextBlock, setSelectedElement } = usePdfStore()
+export function TextContextToolbar({
+  block,
+  pageNum,
+  pos,
+  onEdit,
+  isExtracted = false,
+}) {
+  const {
+    removeTextBlock,
+    updateTextBlock,
+    commitExtractedEdit,
+    setSelectedElement,
+  } = usePdfStore();
+  const [translate, setTranslate] = useState({ phase: "idle", draft: "" });
+  const translating = translate.phase === "loading";
+
+  const startTranslate = async () => {
+    if (translating) return;
+    setTranslate({ phase: "loading", draft: "" });
+    const result = await translateText(block.str);
+    if (!result.ok) {
+      setTranslate({ phase: "idle", draft: "" });
+      if (result.code === "EMPTY_TEXT") toast(result.message, { icon: "🚫" });
+      else toast.error(result.message);
+      return;
+    }
+    setTranslate({ phase: "preview", draft: result.translated });
+  };
+
+  const applyTranslation = () => {
+    if (translate.phase !== "preview") return;
+    const draft = translate.draft.trim();
+    if (!draft) return;
+    if (block.isEdited && block.originalId) {
+      // Re-translating a committed edit: re-commit against the original block
+      // identity so the existing edit updates in place instead of stacking.
+      commitExtractedEdit(
+        pageNum,
+        {
+          ...block,
+          id: block.originalId,
+          str: block.originalStr ?? block.str,
+          x: block.originalX ?? block.x,
+          y: block.originalY ?? block.y,
+          width: block.originalWidth ?? block.width,
+          height: block.originalHeight ?? block.height,
+        },
+        draft,
+      );
+    } else if (isExtracted) {
+      commitExtractedEdit(pageNum, block, draft);
+    } else {
+      updateTextBlock(pageNum, block.id, { str: draft });
+    }
+    setTranslate({ phase: "idle", draft: "" });
+    toast.success("✓ Translated", { duration: 1200 });
+  };
+
+  const discardTranslation = () => setTranslate({ phase: "idle", draft: "" });
 
   return (
     <div
       style={{
-        position: 'absolute',
+        position: "absolute",
         left: pos.x,
         top: Math.max(2, pos.y - 50),
-        display: 'flex',
-        alignItems: 'center',
+        display: "flex",
+        alignItems: "center",
         gap: 2,
-        background: '#18181b',
-        border: '1px solid rgba(255,255,255,0.15)',
+        background: "#18181b",
+        border: "1px solid rgba(255,255,255,0.15)",
         borderRadius: 10,
-        padding: '5px 6px',
+        padding: "5px 6px",
         zIndex: 40,
-        boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
-        pointerEvents: 'all',
-        whiteSpace: 'nowrap',
-        userSelect: 'none',
+        boxShadow: "0 4px 24px rgba(0,0,0,0.6)",
+        pointerEvents: "all",
+        whiteSpace: "nowrap",
+        userSelect: "none",
       }}
-      onMouseDown={e => { e.preventDefault(); e.stopPropagation() }}
-      onClick={e => e.stopPropagation()}
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }}
+      onClick={(e) => e.stopPropagation()}
     >
       {[
-        { label: '✏️ Edit', action: () => onEdit(), },
+        { label: "✏️ Edit", action: () => onEdit(), disabled: translating },
         { label: null }, // separator
         {
-          icon: <Copy size={16} />, title: 'Duplicate', action: () => {
-            const clone = { ...block, id: `new-${Date.now()}`, x: pos.x + 14, y: pos.y + 14, isExtracted: false, isEdited: false, originalId: undefined }
-            updateTextBlock(pageNum, clone.id, clone)
-            toast.success('Duplicated')
-          }
+          icon: <Copy size={16} />,
+          title: "Duplicate",
+          disabled: translating,
+          action: () => {
+            const clone = {
+              ...block,
+              id: `new-${Date.now()}`,
+              x: pos.x + 14,
+              y: pos.y + 14,
+              isExtracted: false,
+              isEdited: false,
+              originalId: undefined,
+            };
+            updateTextBlock(pageNum, clone.id, clone);
+            toast.success("Duplicated");
+          },
         },
-        { icon: <Wand2 size={16} />, title: 'AI font match', action: () => toast('AI font match — v1.1', { icon: '✨' }) },
+        {
+          icon: translating ? (
+            <Loader2 size={16} className={styles.spin} />
+          ) : (
+            <Languages size={16} />
+          ),
+          label: translating ? "Translating…" : null,
+          title: translating ? "Translating…" : "Translate EN↔ES",
+          disabled: translating,
+          action: startTranslate,
+        },
+        {
+          icon: <Wand2 size={16} />,
+          title: "AI font match",
+          disabled: translating,
+          action: () => toast("AI font match — v1.1", { icon: "✨" }),
+        },
         { label: null }, // separator
         {
-          icon: <Trash2 size={16} />, title: 'Delete', danger: true, action: () => {
-            removeTextBlock(pageNum, block.id)
-            setSelectedElement(null, null)
-            toast.success('Removed')
-          }
+          icon: <Trash2 size={16} />,
+          title: "Delete",
+          danger: true,
+          disabled: translating,
+          action: () => {
+            removeTextBlock(pageNum, block.id);
+            setSelectedElement(null, null);
+            toast.success("Removed");
+          },
         },
       ].map((item, i) => {
-        if (item.label === null) return (
-          <div key={i} style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.1)', margin: '0 3px' }} />
-        )
+        if (item.label === null)
+          return (
+            <div
+              key={i}
+              style={{
+                width: 1,
+                height: 22,
+                background: "rgba(255,255,255,0.1)",
+                margin: "0 3px",
+              }}
+            />
+          );
         return (
-          <button key={i} title={item.title} onMouseDown={e => { e.preventDefault(); e.stopPropagation(); item.action() }}
+          <button
+            key={i}
+            title={item.title}
+            disabled={item.disabled}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (!item.disabled) item.action();
+            }}
             style={{
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-              minWidth: 40, height: 40, padding: '0 12px',
-              border: 'none', borderRadius: 7, background: 'transparent',
-              color: item.danger ? '#f87171' : '#a1a1aa',
-              fontSize: 14, cursor: 'pointer', fontFamily: 'var(--font-sans)',
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 5,
+              minWidth: 40,
+              height: 40,
+              padding: "0 12px",
+              border: "none",
+              borderRadius: 7,
+              background: "transparent",
+              color: item.danger ? "#f87171" : "#a1a1aa",
+              fontSize: 14,
+              cursor: item.disabled ? "default" : "pointer",
+              fontFamily: "var(--font-sans)",
+              opacity: item.disabled ? 0.45 : 1,
             }}
           >
-            {item.label || item.icon}
+            {item.icon}
+            {item.label}
           </button>
-        )
+        );
       })}
+
+      {translate.phase === "preview" && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 8px)",
+            left: 0,
+            width: "min(320px, 78vw)",
+            background: "#18181b",
+            border: "1px solid rgba(255,255,255,0.15)",
+            borderRadius: 10,
+            padding: 10,
+            zIndex: 41,
+            boxShadow: "0 4px 24px rgba(0,0,0,0.6)",
+            whiteSpace: "normal",
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <textarea
+            autoFocus
+            rows={Math.min(6, Math.max(2, translate.draft.split("\n").length))}
+            value={translate.draft}
+            onChange={(e) =>
+              setTranslate((t) => ({ ...t, draft: e.target.value }))
+            }
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Escape") {
+                e.preventDefault();
+                discardTranslation();
+              }
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                applyTranslation();
+              }
+            }}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              display: "block",
+              background: "#0d0d0f",
+              color: "#f4f4f5",
+              border: "1px solid rgba(255,255,255,0.12)",
+              borderRadius: 7,
+              padding: "8px 10px",
+              fontSize: 13,
+              lineHeight: 1.4,
+              fontFamily: "var(--font-sans)",
+              resize: "vertical",
+              outline: "none",
+            }}
+          />
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              gap: 8,
+              marginTop: 8,
+            }}
+          >
+            <button
+              onClick={discardTranslation}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+                height: 32,
+                padding: "0 12px",
+                border: "1px solid rgba(255,255,255,0.15)",
+                borderRadius: 7,
+                background: "transparent",
+                color: "#a1a1aa",
+                fontSize: 13,
+                cursor: "pointer",
+                fontFamily: "var(--font-sans)",
+              }}
+            >
+              Discard
+            </button>
+            <button
+              onClick={applyTranslation}
+              disabled={!translate.draft.trim()}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+                height: 32,
+                padding: "0 14px",
+                border: "none",
+                borderRadius: 7,
+                background: "#e84545",
+                color: "white",
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: translate.draft.trim() ? "pointer" : "default",
+                fontFamily: "var(--font-sans)",
+                opacity: translate.draft.trim() ? 1 : 0.45,
+              }}
+            >
+              <Check size={14} /> Apply
+            </button>
+          </div>
+        </div>
+      )}
     </div>
-  )
+  );
 }
