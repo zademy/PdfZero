@@ -26,17 +26,13 @@ import {
 import toast from "react-hot-toast";
 import { usePdfStore } from "../../store/pdfStore.js";
 import { exportPdf, downloadBytes } from "../../lib/pdfExporter.js";
-import { renderPage } from "../../lib/pdfRenderer.js";
-import { detectOllama, ollamaOcrCanvas } from "../../lib/ollamaOcr.js";
-import { ocrCanvas, terminateOcr } from "../../lib/ocrEngine.js";
+import { ocrPage } from "../../lib/ocrPipeline.js";
 import OcrModal from "./OcrModal.jsx";
 import {
   translatePage,
   condenseTranslations,
   sortByReadingOrder,
-  getGlmApiKey,
 } from "../../lib/translation.js";
-import { formatOcrMarkdown } from "../../lib/ocrFormat.js";
 import DropZone from "../ui/DropZone.jsx";
 import styles from "./EditorToolbar.module.css";
 
@@ -393,56 +389,33 @@ export default function EditorToolbar() {
     setOcrProgress(0);
     const tid = toast.loading(`Running OCR on page ${currentPage}...`);
     try {
-      const { canvas } = await renderPage(currentPage, 2);
-      // Prefer the local Ollama OCR model when installed (glm-ocr — better
-      // multilingual accuracy); tesseract.js is the always-available
-      // browser-only fallback. Everything stays on the user's machine.
-      let text = "";
-      let engine = "";
-      const ollama = await detectOllama();
-      if (ollama) {
-        toast.loading(`OCR via Ollama (${ollama.model})...`, { id: tid });
-        try {
-          text = await ollamaOcrCanvas(canvas, ollama.model);
-          engine = ollama.model;
-        } catch {
-          text = ""; // fall through to tesseract
-        }
-      }
-      if (!text) {
-        const words = await ocrCanvas(canvas, (pct) => {
+      const result = await ocrPage(currentPage, {
+        onStage: (stage, detail) => {
+          const labels = {
+            render: `Running OCR on page ${currentPage}...`,
+            detect: "Detecting OCR engine...",
+            ollama: `OCR via Ollama (${detail})...`,
+            tesseract: "OCR via tesseract.js...",
+            format: "Formatting with GLM...",
+          };
+          if (labels[stage]) toast.loading(labels[stage], { id: tid });
+        },
+        onProgress: (pct) => {
           setOcrProgress(pct);
           toast.loading(`OCR: ${pct}%`, { id: tid });
-        });
-        text = words.map((w) => w.str).join(" ");
-        engine = "tesseract.js";
-      }
-      if (!text.trim()) {
+        },
+      });
+      if (!result.raw.trim()) {
         toast.error("No text found", { id: tid });
         return;
       }
-      // Structure the raw OCR into page-like Markdown with GLM (same client
-      // as translation). Best-effort: on failure the modal opens with the
-      // raw text only.
-      let markdown = null;
-      if (getGlmApiKey()) {
-        toast.loading("Formatting with GLM...", { id: tid });
-        try {
-          const fmt = await formatOcrMarkdown(text);
-          if (fmt.ok) markdown = fmt.markdown;
-        } catch {
-          /* keep markdown null */
-        }
-      }
       toast.success("OCR complete — review the result", { id: tid });
-      addOcrResult({ raw: text, markdown, engine, page: currentPage });
+      addOcrResult({ ...result, page: currentPage });
     } catch (e) {
       toast.error("OCR failed: " + e.message, { id: tid });
     } finally {
       setOcrRunning(false);
       setOcrProgress(0);
-      // AGENTS rule: don't leak the tesseract worker (it degrades the page).
-      terminateOcr().catch(() => {});
     }
   };
 
