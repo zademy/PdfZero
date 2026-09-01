@@ -31,6 +31,48 @@ describe("cleanOcrText", () => {
     expect(cleanOcrText(looped)).toBe(block);
   });
 
+  it("drops a final block that is a truncated prefix of the previous kept block", () => {
+    const block = "The quick brown fox jumps over the lazy dog again.";
+    const truncated = block.slice(0, 20); // generation cap cut mid-repeat
+    expect(cleanOcrText(`${block}\n\n${truncated}`)).toBe(block);
+  });
+
+  it("labels the truncated final block as echo", () => {
+    const labeled = labelBlocks(
+      "Full block that is long enough.\n\nFull block ",
+    );
+    const last = labeled[labeled.length - 1];
+    expect(last.label).toBe("echo");
+  });
+
+  it("keeps a short final block that happens to be a prefix (< threshold)", () => {
+    const block = "Section heading text that is long.";
+    const text = `${block}\n\n${block.slice(0, 9)}`;
+    expect(cleanOcrText(text)).toBe(text);
+  });
+
+  it("drops at exactly the 10-char prefix threshold", () => {
+    const block = "A sufficiently long block of text here.";
+    expect(cleanOcrText(`${block}\n\n${block.slice(0, 10)}`)).toBe(block);
+  });
+
+  it("collapses a run of identical consecutive lines inside a block", () => {
+    const block = "First line.\nFirst line.\nFirst line.\nSecond line.";
+    expect(cleanOcrText(block)).toBe("First line.\nSecond line.");
+  });
+
+  it("keeps a line that repeats non-consecutively inside a block", () => {
+    const block = "Intro.\nBody.\nIntro.";
+    expect(cleanOcrText(block)).toBe(block);
+  });
+
+  it("is idempotent: cleaning twice equals cleaning once", () => {
+    const block = "The quick brown fox jumps over the lazy dog again.";
+    const dirty = `${block}\n\n${block}\n\n${block.slice(0, 25)}`;
+    const once = cleanOcrText(dirty);
+    expect(cleanOcrText(once)).toBe(once);
+  });
+
   it("keeps non-consecutive repeats (genuine recurring content)", () => {
     const text = "Header\n\nBody A\n\nHeader\n\nBody B";
     expect(cleanOcrText(text)).toBe(text);
