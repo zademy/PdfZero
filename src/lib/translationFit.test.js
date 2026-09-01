@@ -6,6 +6,8 @@ import {
   sanitizeColor,
   buildPageEntries,
   fitTranslations,
+  expansionItems,
+  mergeExpansions,
 } from "./translationFit.js";
 
 // Deterministic fake measurer: every char is 10px wide.
@@ -171,5 +173,102 @@ describe("fitTranslations — condense everything that measures over its box", (
     ];
     await fitTranslations(ordered2, {}, { measureWidth, condense });
     expect(condense).not.toHaveBeenCalled();
+  });
+});
+
+describe("expansionItems — which lines are short, and their budgets", () => {
+  const measureWidth = (text) => text.length * 10; // 10px/char
+
+  const entry = (id, text, { boxWidth = 100 } = {}) => ({
+    id,
+    kind: "extracted",
+    block: { id: `b-${id}`, str: text, width: boxWidth, fontSize: 20 },
+  });
+
+  it("flags under-filled lines with a linear-scale budget (capped by maxGrow)", () => {
+    // 5 chars = 50px in 100px box (fill 0.5) → raw 9 chars, cap ⌈5×1.6⌉ = 8
+    const e = entry("a", "abcde");
+    const out = expansionItems([e], { a: "abcde" }, { measureWidth });
+    expect(out).toEqual([{ id: "a", text: "abcde", budget: 8 }]);
+  });
+
+  it("leaves lines at ≥ minFill alone", () => {
+    const e = entry("a", "abcdefghi"); // 0.9 fill
+    expect(expansionItems([e], { a: "abcdefghi" }, { measureWidth })).toEqual(
+      [],
+    );
+  });
+
+  it("never flags over-width lines (condense owns those)", () => {
+    const e = entry("a", "abcdefghijklmnop");
+    expect(
+      expansionItems([e], { a: "abcdefghijklmnop" }, { measureWidth }),
+    ).toEqual([]);
+  });
+
+  it("caps growth at maxGrow × original length", () => {
+    // 2 chars = 20px in 200px box → raw budget 19, cap 2*1.6 = 4 (ceil)
+    const e = entry("a", "ab", { boxWidth: 200 });
+    const out = expansionItems([e], { a: "ab" }, { measureWidth });
+    expect(out[0].budget).toBe(4);
+  });
+
+  it("skips negligible budgets, blanks, single chars, no measurer", () => {
+    const e = entry("a", "abcd", { boxWidth: 50 }); // raw 4 ≤ len+1 → skipped
+    expect(expansionItems([e], { a: "abcd" }, { measureWidth })).toEqual([]);
+    expect(expansionItems([e], { a: " " }, { measureWidth })).toEqual([]);
+    expect(expansionItems([e], { a: "x" }, { measureWidth })).toEqual([]);
+    expect(expansionItems([e], { a: "abcd" }, {})).toEqual([]);
+  });
+});
+
+describe("mergeExpansions — accept only real, non-overflowing gains", () => {
+  const measureWidth = (text) => text.length * 10;
+
+  const entry = (id, { boxWidth = 100 } = {}) => ({
+    id,
+    kind: "extracted",
+    block: { id: `b-${id}`, str: "orig", width: boxWidth, fontSize: 20 },
+  });
+
+  it("accepts a candidate that fills more and still fits", () => {
+    const e = entry("a");
+    const out = mergeExpansions(
+      [e],
+      { a: "abcde" }, // fill 0.5
+      { a: "abcdefgh" }, // fill 0.8
+      { measureWidth },
+    );
+    expect(out.a).toBe("abcdefgh");
+  });
+
+  it("rejects a candidate that would overflow the box", () => {
+    const e = entry("a");
+    const out = mergeExpansions(
+      [e],
+      { a: "abcde" },
+      { a: "abcdefghijkl" }, // 120px > 100px
+      { measureWidth },
+    );
+    expect(out.a).toBe("abcde");
+  });
+
+  it("rejects negligible improvement", () => {
+    const e = entry("a");
+    const fine = (text) => text.length * 2; // 2px/char → +1 char = +0.02 fill
+    const out = mergeExpansions(
+      [e],
+      { a: "abcdefgh" }, // 0.16
+      { a: "abcdefghi" }, // 0.18 → gain 0.02 < 0.03
+      { measureWidth: fine },
+    );
+    expect(out.a).toBe("abcdefgh");
+  });
+
+  it("returns translations untouched on bad input", () => {
+    const e = entry("a");
+    const t = { a: "abcde" };
+    expect(mergeExpansions([e], t, null, { measureWidth })).toBe(t);
+    expect(mergeExpansions([e], t, {}, {})).toBe(t);
   });
 });

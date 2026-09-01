@@ -175,3 +175,66 @@ export async function fitTranslations(
   }
   return out;
 }
+
+// ─── Right-margin fill via NATURAL TEXT (no typography tricks) ─────────────
+// A translated line that lands well short of its original box is rephrased
+// (by GLM, in translate-land) to approximately the character count that
+// fills ~95% of the box. Same font, same size, letterSpacing untouched —
+// the text itself does the filling.
+export function expansionItems(
+  ordered,
+  translations,
+  { measureWidth, targetFactor = 0.95, minFill = 0.9, maxGrow = 1.6 } = {},
+) {
+  if (typeof measureWidth !== "function") return [];
+  const items = [];
+  for (const e of ordered) {
+    const translated = translations[e.id];
+    if (!translated || !translated.trim()) continue;
+    const boxWidth = e.block.originalWidth ?? e.block.width ?? 0;
+    if (!boxWidth || translated.length < 2) continue;
+    const measured = measureWidth(translated, e.block);
+    const fill = measured / boxWidth;
+    if (fill >= minFill) continue; // close enough already
+    if (measured > boxWidth) continue; // over-width is condense's job
+    const pxPerChar = measured / translated.length;
+    const budget = Math.min(
+      Math.floor((boxWidth * targetFactor) / pxPerChar),
+      Math.ceil(translated.length * maxGrow),
+    );
+    if (budget <= translated.length + 1) continue; // nothing meaningful to add
+    items.push({ id: e.id, text: translated, budget });
+  }
+  return items;
+}
+
+// Merge expanded candidates back: keep one ONLY if it measurably improves
+// the fill AND still fits inside the box. Anything else keeps the original
+// translation — a ragged right beats overflow or a worse line.
+export function mergeExpansions(
+  ordered,
+  translations,
+  expanded,
+  { measureWidth, minGain = 0.03 } = {},
+) {
+  if (
+    typeof measureWidth !== "function" ||
+    !expanded ||
+    typeof expanded !== "object"
+  )
+    return translations;
+  const out = { ...translations };
+  for (const e of ordered) {
+    const candidate = expanded[e.id];
+    const original = translations[e.id];
+    if (!candidate || !original) continue;
+    const boxWidth = e.block.originalWidth ?? e.block.width ?? 0;
+    if (!boxWidth) continue;
+    const before = measureWidth(original, e.block) / boxWidth;
+    const after = measureWidth(candidate, e.block) / boxWidth;
+    if (measureWidth(candidate, e.block) > boxWidth * 1.005) continue; // would overflow
+    if (after - before < minGain) continue; // not meaningfully better
+    out[e.id] = candidate;
+  }
+  return out;
+}

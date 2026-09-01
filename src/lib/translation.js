@@ -45,6 +45,8 @@ const PAGE_SYSTEM_PROMPT = [
   "You are a precise professional translator.",
   "The user message is a JSON array of text segments from ONE document page, in reading order.",
   "Translate every segment: English into Spanish, or Spanish into English, so the whole page reads as one coherent document.",
+  "SPANISH TARGET VARIETY: natural Latin American Spanish (es-419).",
+  "Use 'ustedes' (never 'vosotros'), 'computadora' (not 'ordenador'), 'carro/auto' (not 'coche'), and Latin American professional vocabulary throughout.",
   "Keep terminology and proper nouns consistent across all segments.",
   "Each segment has a 'budget' (max characters). Your translation for that id MUST NOT exceed its budget — compress politely (drop filler, never meaning) if needed.",
   "CRITICAL: each output must contain ONLY its own segment's content. Never merge, split, or move content across segments — even when two segments form one visual line, heading, or sentence. Segment i's translation maps to segment i's box on the page.",
@@ -62,6 +64,17 @@ const CONDENSE_SYSTEM_PROMPT = [
   "Preserve the meaning and the language; drop filler words, abbreviate politely, never cut mid-word.",
   "If the text already fits, return it unchanged.",
   "Respond with ONLY a JSON object mapping every id to the compressed text.",
+  "No markdown fences, no commentary.",
+].join(" ");
+
+const EXPAND_SYSTEM_PROMPT = [
+  "You refine short translations so they fill their space naturally.",
+  "The user message is a JSON array of objects: {id, text, budget}.",
+  "For every id, return a version of `text` in the SAME language whose length is approximately its budget characters (±10%).",
+  "Stay faithful to the meaning: restore words the compression dropped, use fuller natural phrasing — never invent new facts, never pad with repetitions, filler or ellipses.",
+  "The text is Latin American Spanish (es-419): keep it that way ('ustedes', 'computadora', 'carro').",
+  "Return ONLY complete words; never cut mid-word.",
+  "Respond with ONLY a JSON object mapping every id to the expanded text.",
   "No markdown fences, no commentary.",
 ].join(" ");
 
@@ -152,6 +165,91 @@ export async function condenseTranslations(items) {
         candidate.trim().length <= text.length ? candidate.trim() : text;
     } else {
       translations[id] = text;
+    }
+  }
+  return { ok: true, translations };
+}
+
+// Lengthen translations that fall short of their character targets so the
+// line fills its box with NATURAL text — no font or spacing tricks. One
+// request, same shape as condenseTranslations.
+export async function expandTranslations(items) {
+  const list = (items || []).filter(
+    (e) => e && e.id && typeof e.text === "string",
+  );
+  if (!list.length) {
+    return { ok: true, translations: {} };
+  }
+
+  const apiKey = getGlmApiKey();
+  if (!apiKey) {
+    return { ok: false, code: "MISSING_KEY", message: "API key missing." };
+  }
+
+  let response;
+  try {
+    response = await fetch(GLM_API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(
+        chatBody(
+          [
+            { role: "system", content: EXPAND_SYSTEM_PROMPT },
+            {
+              role: "user",
+              content: JSON.stringify(
+                list.map(({ id, text, budget }) => ({ id, text, budget })),
+              ),
+            },
+          ],
+          PAGE_MAX_TOKENS,
+        ),
+      ),
+    });
+  } catch (_) {
+    return {
+      ok: false,
+      code: "NETWORK",
+      message: "Could not reach the translation service.",
+    };
+  }
+
+  if (!response.ok) {
+    return {
+      ok: false,
+      code: "API_ERROR",
+      message: `Translation service error (HTTP ${response.status}).`,
+    };
+  }
+
+  let data;
+  try {
+    data = await response.json();
+  } catch (_) {
+    return {
+      ok: false,
+      code: "BAD_RESPONSE",
+      message: "Unreadable response from the translation service.",
+    };
+  }
+
+  const map = parseBatchMap(data?.choices?.[0]?.message?.content);
+  if (!map) {
+    return {
+      ok: false,
+      code: "BAD_RESPONSE",
+      message: "Expansion service returned malformed data.",
+    };
+  }
+
+  const translations = {};
+  for (const { id } of list) {
+    const candidate = map[id];
+    if (typeof candidate === "string" && candidate.trim()) {
+      translations[id] = candidate.trim();
     }
   }
   return { ok: true, translations };

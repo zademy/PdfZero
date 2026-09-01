@@ -28,11 +28,17 @@ import { usePdfStore } from "../../store/pdfStore.js";
 import { exportPdf, downloadBytes } from "../../lib/pdfExporter.js";
 import { ocrPage } from "../../lib/ocrPipeline.js";
 import OcrModal from "./OcrModal.jsx";
-import { translatePage, sortByReadingOrder } from "../../lib/translation.js";
+import {
+  translatePage,
+  sortByReadingOrder,
+  expandTranslations,
+} from "../../lib/translation.js";
 import {
   buildPageEntries,
   createMeasureWidth,
   fitTranslations,
+  expansionItems,
+  mergeExpansions,
 } from "../../lib/translationFit.js";
 import DropZone from "../ui/DropZone.jsx";
 import styles from "./EditorToolbar.module.css";
@@ -129,6 +135,24 @@ export default function EditorToolbar() {
           measureWidth,
         },
       );
+
+      // Right-margin fill, text-only: rephrase lines that land short so they
+      // fill ~95% of their box NATURALLY — same font, same size, no spacing
+      // tricks. Candidates are validated (fit + real gain) before merging.
+      const expandables = expansionItems(ordered, result.translations, {
+        measureWidth,
+      });
+      if (expandables.length) {
+        const expanded = await expandTranslations(expandables);
+        if (expanded.ok) {
+          result.translations = mergeExpansions(
+            ordered,
+            result.translations,
+            expanded.translations,
+            { measureWidth },
+          );
+        }
+      }
 
       const updates = ordered
         .map((e) => ({
