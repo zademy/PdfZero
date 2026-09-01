@@ -154,6 +154,18 @@ export default function EditorToolbar() {
         }
       }
 
+      // Final safety pass with honest boxes (boxOf clamps to the original
+      // line's measured footprint): if ANY line — translated or expanded —
+      // now sits past its own original width, condense it back inside.
+      // Nothing may exit the margin the original didn't already cross.
+      result.translations = await fitTranslations(
+        ordered,
+        result.translations,
+        {
+          measureWidth,
+        },
+      );
+
       const updates = ordered
         .map((e) => ({
           block: e.block,

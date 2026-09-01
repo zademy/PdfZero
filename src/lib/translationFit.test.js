@@ -8,6 +8,7 @@ import {
   fitTranslations,
   expansionItems,
   mergeExpansions,
+  boxOf,
 } from "./translationFit.js";
 
 // Deterministic fake measurer: every char is 10px wide.
@@ -186,8 +187,9 @@ describe("expansionItems — which lines are short, and their budgets", () => {
   });
 
   it("flags under-filled lines with a linear-scale budget (capped by maxGrow)", () => {
-    // 5 chars = 50px in 100px box (fill 0.5) → raw 9 chars, cap ⌈5×1.6⌉ = 8
-    const e = entry("a", "abcde");
+    // original fills the box (10 chars = 100px); translated 5 chars = 50px
+    // (fill 0.5) → raw 9 chars, cap ⌈5×1.6⌉ = 8
+    const e = entry("a", "abcdefghij");
     const out = expansionItems([e], { a: "abcde" }, { measureWidth });
     expect(out).toEqual([{ id: "a", text: "abcde", budget: 8 }]);
   });
@@ -207,8 +209,9 @@ describe("expansionItems — which lines are short, and their budgets", () => {
   });
 
   it("caps growth at maxGrow × original length", () => {
-    // 2 chars = 20px in 200px box → raw budget 19, cap 2*1.6 = 4 (ceil)
-    const e = entry("a", "ab", { boxWidth: 200 });
+    // original fills the 200px box (20 chars); translated "ab" = 20px →
+    // raw budget floor(200·0.95/10)=19, cap 2*1.6 = 4 (ceil)
+    const e = entry("a", "abcdefghijklmnopqrst", { boxWidth: 200 });
     const out = expansionItems([e], { a: "ab" }, { measureWidth });
     expect(out[0].budget).toBe(4);
   });
@@ -228,7 +231,13 @@ describe("mergeExpansions — accept only real, non-overflowing gains", () => {
   const entry = (id, { boxWidth = 100 } = {}) => ({
     id,
     kind: "extracted",
-    block: { id: `b-${id}`, str: "orig", width: boxWidth, fontSize: 20 },
+    text: "z".repeat(boxWidth / 10), // original glyphs fill the box
+    block: {
+      id: `b-${id}`,
+      str: "z".repeat(boxWidth / 10),
+      width: boxWidth,
+      fontSize: 20,
+    },
   });
 
   it("accepts a candidate that fills more and still fits", () => {
@@ -254,8 +263,14 @@ describe("mergeExpansions — accept only real, non-overflowing gains", () => {
   });
 
   it("rejects negligible improvement", () => {
-    const e = entry("a");
     const fine = (text) => text.length * 2; // 2px/char → +1 char = +0.02 fill
+    // original text sized for the fine measurer so the box stays 100
+    const e = {
+      id: "a",
+      kind: "extracted",
+      text: "f".repeat(50),
+      block: { id: "b-a", str: "f".repeat(50), width: 100, fontSize: 20 },
+    };
     const out = mergeExpansions(
       [e],
       { a: "abcdefgh" }, // 0.16
@@ -270,5 +285,66 @@ describe("mergeExpansions — accept only real, non-overflowing gains", () => {
     const t = { a: "abcde" };
     expect(mergeExpansions([e], t, null, { measureWidth })).toBe(t);
     expect(mergeExpansions([e], t, {}, {})).toBe(t);
+  });
+});
+
+describe("boxOf — honest box clamps inflated geometry", () => {
+  const measureWidth = (text) => text.length * 10; // 10px/char
+
+  const entry = ({ width, originalWidth, text = "abcdefgh" }) => ({
+    id: "x",
+    kind: "extracted",
+    text,
+    block: { id: "b", str: text, width, originalWidth, fontSize: 20 },
+  });
+
+  it("clamps an inflated box to the original string's measured footprint", () => {
+    // originalWidth claims 732 but the real glyphs occupy 80 → 80×1.02
+    expect(boxOf(entry({ width: 732, originalWidth: 732 }), measureWidth)).toBe(
+      81.6,
+    );
+  });
+
+  it("keeps the geometry box when it is smaller than measured", () => {
+    // originalWidth 60 beats width 50; glyphs measure 80 (over both), so the
+    // declared geometry stands — strict is safe
+    expect(boxOf(entry({ width: 50, originalWidth: 60 }), measureWidth)).toBe(
+      60,
+    );
+  });
+
+  it("degrades to the raw box without a measurer or original text", () => {
+    expect(boxOf(entry({ width: 100 }), undefined)).toBe(100);
+    const noText = { id: "x", block: { id: "b", width: 100 } };
+    expect(boxOf(noText, measureWidth)).toBe(100);
+  });
+
+  it("fitTranslations condenses against the CLAMPED box, not the inflated one", async () => {
+    // box claims 732; real footprint 81.6. A 300px translation must be
+    // flagged over-width and condensed, even though 300 < 732.
+    const e = entry({ width: 732, originalWidth: 732 });
+    vi.mocked(vi.fn());
+    const condense = vi.fn(async () => ({
+      ok: true,
+      translations: { x: "corta" },
+    }));
+    const out = await fitTranslations(
+      [e],
+      { x: "a".repeat(30) },
+      { measureWidth, condense },
+    );
+    expect(condense).toHaveBeenCalled();
+    expect(out.x).toBe("corta");
+  });
+
+  it("mergeExpansions rejects a candidate past the clamped box", () => {
+    const e = entry({ width: 732, originalWidth: 732 }); // true box 81.6
+    const out = mergeExpansions(
+      [e],
+      { x: "abcdefgh" }, // 80px, fill 0.98 of true box
+      { x: "a".repeat(30) }, // 300px — would pass a 732 box, must fail the clamp
+      { measureWidth },
+    );
+    expect(out.x).toBe("abcdefgh");
   });
 });

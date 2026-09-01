@@ -138,6 +138,21 @@ export function buildPageEntries({ extractedItems, layerTexts, pageBg }) {
 // Char budgets are only guidance; a measured overrun visibly escapes the box
 // and the page's right margin. Returns a NEW translations map — shorter
 // condensations replace their originals, everything else passes through.
+// ─── Box truth ─────────────────────────────────────────────────────────────
+// The ORIGINAL string's measured width is the line's true footprint (canvas
+// and DOM agree within ~1.2%). A block's originalWidth/width can be inflated
+// (merged runs, stale geometry) — an inflated box lets an expansion run past
+// the visual margin even when every check "passes". Clamp the box to what the
+// original glyphs actually occupy, with a small skew allowance.
+export function boxOf(entry, measureWidth) {
+  const box = entry.block.originalWidth ?? entry.block.width ?? 0;
+  if (!box || typeof measureWidth !== "function") return box;
+  const orig = entry.text ?? entry.block.str;
+  if (!orig) return box;
+  const m = measureWidth(orig, entry.block);
+  return m > 0 ? Math.min(box, m * 1.02) : box;
+}
+
 export async function fitTranslations(
   ordered,
   translations,
@@ -146,16 +161,16 @@ export async function fitTranslations(
   const overWidth = ordered.filter((e) => {
     const translated = translations[e.id];
     if (!translated) return false;
-    const boxWidth = e.block.originalWidth ?? e.block.width ?? 0;
+    const boxWidth = boxOf(e, measureWidth);
     if (!boxWidth) return false;
-    return measureWidth(translated, e.block) > boxWidth * 1.01;
+    return measureWidth(translated, e.block) > boxWidth * 1.005;
   });
   if (!overWidth.length) return translations;
 
   const condensed = await condense(
     overWidth.map((e) => {
       const translated = translations[e.id];
-      const boxWidth = e.block.originalWidth ?? e.block.width;
+      const boxWidth = boxOf(e, measureWidth);
       const measured = measureWidth(translated, e.block);
       return {
         id: e.id,
@@ -191,7 +206,7 @@ export function expansionItems(
   for (const e of ordered) {
     const translated = translations[e.id];
     if (!translated || !translated.trim()) continue;
-    const boxWidth = e.block.originalWidth ?? e.block.width ?? 0;
+    const boxWidth = boxOf(e, measureWidth);
     if (!boxWidth || translated.length < 2) continue;
     const measured = measureWidth(translated, e.block);
     const fill = measured / boxWidth;
@@ -228,11 +243,11 @@ export function mergeExpansions(
     const candidate = expanded[e.id];
     const original = translations[e.id];
     if (!candidate || !original) continue;
-    const boxWidth = e.block.originalWidth ?? e.block.width ?? 0;
+    const boxWidth = boxOf(e, measureWidth);
     if (!boxWidth) continue;
     const before = measureWidth(original, e.block) / boxWidth;
     const after = measureWidth(candidate, e.block) / boxWidth;
-    if (measureWidth(candidate, e.block) > boxWidth * 1.005) continue; // would overflow
+    if (measureWidth(candidate, e.block) > boxWidth * 0.995) continue; // would overflow
     if (after - before < minGain) continue; // not meaningfully better
     out[e.id] = candidate;
   }
