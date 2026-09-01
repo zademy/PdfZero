@@ -27,7 +27,6 @@ import toast from "react-hot-toast";
 import { usePdfStore } from "../../store/pdfStore.js";
 import { exportPdf, downloadBytes } from "../../lib/pdfExporter.js";
 import { renderPage, classifyFont } from "../../lib/pdfRenderer.js";
-import { familyCss } from "../../lib/fontRegistry.js";
 import { detectOllama, ollamaOcrCanvas } from "../../lib/ollamaOcr.js";
 import { ocrCanvas, terminateOcr } from "../../lib/ocrEngine.js";
 import OcrModal from "./OcrModal.jsx";
@@ -70,7 +69,9 @@ export default function EditorToolbar() {
     pageBgs,
     blockBgs,
     currentPage,
-    addTextBlock,
+    addOcrResult,
+    ocrActive,
+    setOcrActive,
     selectedElement,
     selectedElementPage,
     updateTextBlock,
@@ -88,7 +89,6 @@ export default function EditorToolbar() {
 
   const [ocrRunning, setOcrRunning] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
-  const [ocrResult, setOcrResult] = useState(null); // { text, engine, page }
   const [translatingPage, setTranslatingPage] = useState(false);
 
   // Measure a translation's REAL rendered width (px, same coordinate space
@@ -452,7 +452,7 @@ export default function EditorToolbar() {
         }
       }
       toast.success("OCR complete — review the result", { id: tid });
-      setOcrResult({ raw: text, markdown, engine, page: currentPage });
+      addOcrResult({ raw: text, markdown, engine, page: currentPage });
     } catch (e) {
       toast.error("OCR failed: " + e.message, { id: tid });
     } finally {
@@ -461,27 +461,6 @@ export default function EditorToolbar() {
       // AGENTS rule: don't leak the tesseract worker (it degrades the page).
       terminateOcr().catch(() => {});
     }
-  };
-
-  // Insert the reviewed OCR text as a single editable block (replaces the
-  // old behavior of scattering ~50 one-word blocks over the canvas).
-  const handleOcrInsert = (text) => {
-    const lines = Math.max(1, Math.ceil(text.length / 78));
-    addTextBlock(currentPage, {
-      id: `ocr-${Date.now()}`,
-      str: text,
-      x: 24,
-      y: 48,
-      width: 560,
-      height: lines * 17,
-      fontSize: 12,
-      fontName: "NotoSans",
-      fontFamily: familyCss("NotoSans"),
-      color: "#000000",
-      fromOcr: true,
-    });
-    setOcrResult(null);
-    toast.success("Inserted as text block", { duration: 1500 });
   };
 
   const hasSelection = !!sel;
@@ -715,11 +694,7 @@ export default function EditorToolbar() {
         <Download size={14} /> Download PDF
       </button>
 
-      <OcrModal
-        result={ocrResult}
-        onClose={() => setOcrResult(null)}
-        onInsert={handleOcrInsert}
-      />
+      <OcrModal result={ocrActive} onClose={() => setOcrActive(null)} />
     </div>
   );
 }

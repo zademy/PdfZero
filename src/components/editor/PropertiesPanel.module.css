@@ -239,3 +239,53 @@
   background: var(--bg-card);
   color: var(--tx-1);
 }
+
+/* OCR history (max 3, newest first) */
+.ocrList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ocrEntry {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+  border: 1px solid var(--brd-2);
+  border-radius: var(--r-sm);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition:
+    border-color var(--t-fast),
+    background var(--t-fast);
+}
+
+.ocrEntry:hover {
+  border-color: var(--accent);
+}
+
+.ocrEntryActive {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.ocrTitle {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--tx-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ocrMeta {
+  font-size: 9px;
+  color: var(--tx-4);
+  font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

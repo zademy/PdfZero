@@ -121,3 +121,52 @@ describe("applyPageTranslations", () => {
     expect(after.selectedElement).toBeNull();
   });
 });
+
+describe("OCR history", () => {
+  beforeEach(() => {
+    usePdfStore.getState().reset();
+  });
+
+  it("stores results newest-first and opens the newest in the modal", () => {
+    const s = usePdfStore.getState();
+    s.addOcrResult({ raw: "first run", engine: "e", page: 1 });
+    s.addOcrResult({ raw: "second run", engine: "e", page: 2 });
+
+    const { ocrHistory, ocrActive } = usePdfStore.getState();
+    expect(ocrHistory.map((h) => h.raw)).toEqual(["second run", "first run"]);
+    expect(ocrActive.raw).toBe("second run");
+  });
+
+  it("caps history at 3 by dropping the oldest", () => {
+    const s = usePdfStore.getState();
+    for (let i = 1; i <= 5; i++) {
+      s.addOcrResult({ raw: `run ${i}`, engine: "e", page: i });
+    }
+    const { ocrHistory } = usePdfStore.getState();
+    expect(ocrHistory.map((h) => h.raw)).toEqual(["run 5", "run 4", "run 3"]);
+  });
+
+  it("reopens any entry from history and closes with null", () => {
+    const s = usePdfStore.getState();
+    s.addOcrResult({ raw: "a", engine: "e", page: 1 });
+    s.addOcrResult({ raw: "b", engine: "e", page: 1 });
+    const oldest = usePdfStore.getState().ocrHistory[1];
+
+    usePdfStore.getState().setOcrActive(oldest);
+    expect(usePdfStore.getState().ocrActive.raw).toBe("a");
+
+    usePdfStore.getState().setOcrActive(null);
+    expect(usePdfStore.getState().ocrActive).toBeNull();
+    // closing the modal keeps the history intact
+    expect(usePdfStore.getState().ocrHistory).toHaveLength(2);
+  });
+
+  it("stamps each entry with a timestamp", () => {
+    const s = usePdfStore.getState();
+    const before = Date.now();
+    s.addOcrResult({ raw: "x", engine: "e", page: 1 });
+    const entry = usePdfStore.getState().ocrHistory[0];
+    expect(entry.at).toBeGreaterThanOrEqual(before);
+    expect(entry.at).toBeLessThanOrEqual(Date.now());
+  });
+});

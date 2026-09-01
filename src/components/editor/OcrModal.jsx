@@ -11,7 +11,7 @@ import styles from "./OcrModal.module.css";
  * - Raw: the plain OCR text, editable, used for copy-as-txt and for the
  *   insert-as-block action (text blocks don't render Markdown).
  */
-export default function OcrModal({ result, onClose, onInsert }) {
+export default function OcrModal({ result, onClose }) {
   const [view, setView] = React.useState("formatted");
   const [rawDraft, setRawDraft] = React.useState(result?.raw ?? "");
 
@@ -68,12 +68,9 @@ export default function OcrModal({ result, onClose, onInsert }) {
     toast.success("Downloaded .md", { duration: 1500 });
   };
 
-  const handleInsert = () => {
-    if (!rawDraft.trim()) {
-      toast.error("Nothing to insert");
-      return;
-    }
-    onInsert(rawDraft);
+  const handleDownloadTxt = () => {
+    download(rawDraft, `page-${result.page}-ocr.txt`);
+    toast.success("Downloaded .txt", { duration: 1500 });
   };
 
   return (
@@ -138,11 +135,11 @@ export default function OcrModal({ result, onClose, onInsert }) {
             {activeText.length} chars · {words} words
           </span>
           <div className={styles.actions}>
+            <button className={styles.btn} onClick={handleDownloadTxt}>
+              <Download size={13} /> Download .txt
+            </button>
             <button className={styles.btn} onClick={handleDownloadMd}>
               <Download size={13} /> Download .md
-            </button>
-            <button className={styles.btn} onClick={handleInsert}>
-              <Type size={13} /> Insert as text block
             </button>
             <button className={styles.btnPrimary} onClick={handleCopy}>
               <Copy size={13} /> Copy

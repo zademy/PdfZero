@@ -1,5 +1,5 @@
 import React from "react";
-import { Minus, Plus } from "lucide-react";
+import { Minus, Plus, ScanText } from "lucide-react";
 import {
   FileText,
   Layers,
@@ -15,6 +15,27 @@ import { addWatermark, downloadBytes } from "../../lib/pdfExporter.js";
 import { classifyFont } from "../../lib/pdfRenderer.js";
 import { FAMILIES as FONT_FAMILIES } from "../../lib/fontRegistry.js";
 import styles from "./PropertiesPanel.module.css";
+
+// Short, recognizable label for one OCR history entry: the first words of
+// the extracted text beat an "iteration N" counter — scanning the list, you
+// find the run you want by content, not by ordinal.
+const entryTitle = (raw) => {
+  const firstLine = (raw || "").split("\n").find((l) => l.trim()) || "OCR";
+  return (
+    firstLine.trim().slice(0, 30) + (firstLine.trim().length > 30 ? "…" : "")
+  );
+};
+
+const entryTime = (at) => {
+  try {
+    return new Date(at).toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+};
 
 const MIN_FONT_SIZE = 4;
 const MAX_FONT_SIZE = 200;
@@ -32,6 +53,9 @@ export default function PropertiesPanel() {
     editLayers,
     updateTextBlock,
     commitExtractedEdit,
+    ocrHistory,
+    ocrActive,
+    setOcrActive,
   } = usePdfStore();
 
   // Local draft for the size stepper: keeps intermediate typing ("", "1")
@@ -273,6 +297,30 @@ export default function PropertiesPanel() {
           </div>
           <div className={styles.emptyHint}>
             Click any text in the PDF to select it, then double-click to edit
+          </div>
+        </div>
+      )}
+
+      {/* OCR history — capped list, newest first; click to reopen the modal */}
+      {ocrHistory.length > 0 && (
+        <div className={styles.section}>
+          <div className={styles.sectionTitle}>
+            <ScanText size={12} /> OCR history
+          </div>
+          <div className={styles.ocrList}>
+            {ocrHistory.map((entry) => (
+              <button
+                key={entry.at}
+                className={`${styles.ocrEntry} ${ocrActive === entry ? styles.ocrEntryActive : ""}`}
+                onClick={() => setOcrActive(entry)}
+                title={`Page ${entry.page} · ${entry.engine}`}
+              >
+                <span className={styles.ocrTitle}>{entryTitle(entry.raw)}</span>
+                <span className={styles.ocrMeta}>
+                  Page {entry.page} · {entryTime(entry.at)} · {entry.engine}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       )}

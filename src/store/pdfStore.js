@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 const MAX_HISTORY = 100;
+const OCR_HISTORY_MAX = 3;
 
 const cloneEditState = (s) => ({
   editLayers: JSON.parse(JSON.stringify(s.editLayers || {})),
@@ -100,6 +101,13 @@ export const usePdfStore = create((set, get) => ({
   // flat page-wide color.
   blockBgs: {},
   activeTool: "select",
+
+  // OCR results for the review modal + right-panel history. History is
+  // capped (most recent first, oldest dropped on overflow); ocrActive is
+  // the entry currently shown in the modal (null = closed). Serializable
+  // data only — these ride along in normal state snapshots.
+  ocrHistory: [],
+  ocrActive: null,
 
   // Mobile drawer visibility — Pages (left) and Properties (right) panels
   // become slide-in overlays below a 768px breakpoint. Only one open at a time.
@@ -383,9 +391,25 @@ export const usePdfStore = create((set, get) => ({
       blockBgs: {},
       historyPast: [],
       historyFuture: [],
+      ocrHistory: [],
+      ocrActive: null,
       mobilePagesOpen: false,
       mobilePropertiesOpen: false,
     }),
+
+  // Record a finished OCR run: unshift into history (newest first), cap at
+  // OCR_HISTORY_MAX by dropping the oldest, and open it in the modal.
+  addOcrResult: (result) =>
+    set((s) => {
+      const entry = { ...result, at: Date.now() };
+      return {
+        ocrHistory: [entry, ...s.ocrHistory].slice(0, OCR_HISTORY_MAX),
+        ocrActive: entry,
+      };
+    }),
+
+  // Show a history entry in the modal (or close it with null).
+  setOcrActive: (entry) => set({ ocrActive: entry }),
 }));
 
 // ── pageBgs added separately so we don't rewrite the whole store ──
