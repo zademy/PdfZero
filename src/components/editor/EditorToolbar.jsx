@@ -27,7 +27,10 @@ import toast from "react-hot-toast";
 import { usePdfStore } from "../../store/pdfStore.js";
 import { exportPdf, downloadBytes } from "../../lib/pdfExporter.js";
 import { renderPage, classifyFont } from "../../lib/pdfRenderer.js";
-import { ocrCanvas } from "../../lib/ocrEngine.js";
+import { familyCss } from "../../lib/fontRegistry.js";
+import { detectOllama, ollamaOcrCanvas } from "../../lib/ollamaOcr.js";
+import { ocrCanvas, terminateOcr } from "../../lib/ocrEngine.js";
+import OcrModal from "./OcrModal.jsx";
 import {
   translatePage,
   condenseTranslations,
@@ -83,6 +86,7 @@ export default function EditorToolbar() {
 
   const [ocrRunning, setOcrRunning] = useState(false);
   const [ocrProgress, setOcrProgress] = useState(0);
+  const [ocrResult, setOcrResult] = useState(null); // { text, engine, page }
   const [translatingPage, setTranslatingPage] = useState(false);
 
   // Measure a translation's REAL rendered width (px, same coordinate space
@@ -402,25 +406,67 @@ export default function EditorToolbar() {
     if (!file || ocrRunning) return;
     setOcrRunning(true);
     setOcrProgress(0);
-    const tid = toast.loading("Starting OCR...");
+    const tid = toast.loading(`Running OCR on page ${currentPage}...`);
     try {
-      const { canvas } = await renderPage(currentPage, 1);
-      const words = await ocrCanvas(canvas, (pct) => {
-        setOcrProgress(pct);
-        toast.loading(`OCR: ${pct}%`, { id: tid });
-      });
-      if (!words.length) {
+      const { canvas } = await renderPage(currentPage, 2);
+      // Prefer the local Ollama OCR model when installed (glm-ocr — better
+      // multilingual accuracy); tesseract.js is the always-available
+      // browser-only fallback. Everything stays on the user's machine.
+      let text = "";
+      let engine = "";
+      const ollama = await detectOllama();
+      if (ollama) {
+        toast.loading(`OCR via Ollama (${ollama.model})...`, { id: tid });
+        try {
+          text = await ollamaOcrCanvas(canvas, ollama.model);
+          engine = ollama.model;
+        } catch {
+          text = ""; // fall through to tesseract
+        }
+      }
+      if (!text) {
+        const words = await ocrCanvas(canvas, (pct) => {
+          setOcrProgress(pct);
+          toast.loading(`OCR: ${pct}%`, { id: tid });
+        });
+        text = words.map((w) => w.str).join(" ");
+        engine = "tesseract.js";
+      }
+      if (!text.trim()) {
         toast.error("No text found", { id: tid });
         return;
       }
-      words.forEach((w) => addTextBlock(currentPage, w));
-      toast.success(`Found ${words.length} words`, { id: tid });
+      toast.success("OCR complete — review the result", { id: tid });
+      setOcrResult({ text, engine, page: currentPage });
     } catch (e) {
       toast.error("OCR failed: " + e.message, { id: tid });
     } finally {
       setOcrRunning(false);
       setOcrProgress(0);
+      // AGENTS rule: don't leak the tesseract worker (it degrades the page).
+      terminateOcr().catch(() => {});
     }
+  };
+
+  // Insert the reviewed OCR text as a single editable block (replaces the
+  // old behavior of scattering ~50 one-word blocks over the canvas).
+  const handleOcrInsert = (text) => {
+    const lines = Math.max(1, Math.ceil(text.length / 78));
+    addTextBlock(currentPage, {
+      id: `ocr-${Date.now()}`,
+      str: text,
+      x: 24,
+      y: 48,
+      width: 560,
+      height: lines * 17,
+      fontSize: 12,
+      fontName: "NotoSans",
+      fontFamily: familyCss("NotoSans"),
+      color: "#000000",
+      fromOcr: true,
+    });
+    setOcrResult(null);
+    toast.success("Inserted as text block", { duration: 1500 });
   };
 
   const hasSelection = !!sel;
@@ -653,6 +699,12 @@ export default function EditorToolbar() {
       >
         <Download size={14} /> Download PDF
       </button>
+
+      <OcrModal
+        result={ocrResult}
+        onClose={() => setOcrResult(null)}
+        onInsert={handleOcrInsert}
+      />
     </div>
   );
 }

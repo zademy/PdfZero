@@ -38,6 +38,8 @@ src/
                       encryptPDF via @pdfsmaller/pdf-encrypt
     pdfTextLayout.js  text geometry: textChars, layoutTextForBlock, splitTextLines
     ocrEngine.js      tesseract.js lazy worker: initOcr, ocrCanvas, terminateOcr
+    ollamaOcr.js      optional local Ollama OCR (glm-ocr): detectOllama,
+                      ollamaOcrCanvas, sanitizeOcrText (collapse repeat loops)
   store/pdfStore.js   single Zustand store (usePdfStore) — see editing model
   styles/globals.css  design tokens; components use co-located *.module.css
 ```
