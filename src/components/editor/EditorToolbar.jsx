@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   MousePointer2,
   Type,
@@ -28,11 +28,12 @@ import { usePdfStore } from "../../store/pdfStore.js";
 import { exportPdf, downloadBytes } from "../../lib/pdfExporter.js";
 import { ocrPage } from "../../lib/ocrPipeline.js";
 import OcrModal from "./OcrModal.jsx";
+import { translatePage, sortByReadingOrder } from "../../lib/translation.js";
 import {
-  translatePage,
-  condenseTranslations,
-  sortByReadingOrder,
-} from "../../lib/translation.js";
+  buildPageEntries,
+  createMeasureWidth,
+  fitTranslations,
+} from "../../lib/translationFit.js";
 import DropZone from "../ui/DropZone.jsx";
 import styles from "./EditorToolbar.module.css";
 
@@ -87,118 +88,25 @@ export default function EditorToolbar() {
   const [ocrProgress, setOcrProgress] = useState(0);
   const [translatingPage, setTranslatingPage] = useState(false);
 
-  // Measure a translation's REAL rendered width (px, same coordinate space
-  // as block geometry) using an offscreen canvas with the block's font —
-  // char-count budgets are estimates; accented Spanish glyphs routinely run
-  // wider and overrun the box / the page's right margin.
-  const measureWidth = (() => {
-    let ctx = null;
-    return (text, block) => {
-      if (!ctx) ctx = document.createElement("canvas").getContext("2d");
-      const fontSize = Math.max(block.fontSize || 12, 4);
-      ctx.font = `${block.fontItalic ? "italic " : ""}${block.fontBold ? "bold " : ""}${fontSize}px ${block.fontFamily || "Arial, Helvetica, sans-serif"}`;
-      return ctx.measureText(text).width;
-    };
-  })();
-
-  // Guidance budget for the request payload (chars that fit the box width at
-  // the original font's average advance).
-  const charBudget = (block, fallbackText) => {
-    const w = block.originalWidth ?? block.width;
-    const str = block.originalStr ?? fallbackText ?? "";
-    const adv =
-      block.averageAdvance ||
-      (str.length ? w / str.length : null) ||
-      (block.fontSize || 12) * 0.5;
-    return Math.max(3, Math.floor(w / adv));
-  };
-
-  // The operator-list color heuristic can misassign colors on some pages
-  // (e.g. near-white text on a light page = invisible translation). Snap
-  // near-white text to black when the page background is also light.
-  const isLightColor = (c) => {
-    if (!c) return true;
-    let r;
-    let g;
-    let b;
-    if (c[0] === "#") {
-      const n = parseInt(c.slice(1, 7), 16);
-      r = n >> 16;
-      g = (n >> 8) & 255;
-      b = n & 255;
-    } else {
-      const m = c.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
-      if (m) {
-        r = +m[1];
-        g = +m[2];
-        b = +m[3];
-      } else {
-        return /^(white|whitesmoke|snow|ghostwhite)$/i.test(c);
-      }
-    }
-    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.85;
-  };
-  const sanitizeColor = (block, pageBg) =>
-    isLightColor(block.color) && isLightColor(pageBg)
-      ? { ...block, color: "#000000" }
-      : block;
+  // Offscreen-canvas measurer from lib/translationFit.js — one shared 2d
+  // context, block-font aware.
+  const measureWidth = useMemo(() => createMeasureWidth(), []);
 
   // ── Translate the whole current page in one contextual GLM request ──
-  // Assembles every visible block (extracted originals + committed edits +
-  // user-added boxes) in reading order with per-block character budgets, so
-  // the model keeps context/terminology coherent across boxes and each
-  // translation stays close to its original footprint.
+  // Assembly + box-fitting live in lib/translationFit.js (buildPageEntries
+  // merges extracted originals, their committed edits and user boxes with
+  // per-block budgets; fitTranslations condenses anything that MEASURES past
+  // its box). Here we only orchestrate: request, fit, apply, report.
   const handleTranslatePage = async () => {
     if (translatingPage || !file) return;
     const layer = getLayer(currentPage);
-    const extracted = extractedItems[currentPage] || [];
-    const pageBg = pageBgs[currentPage] || "white";
+    const entries = buildPageEntries({
+      extractedItems: extractedItems[currentPage] || [],
+      layerTexts: layer.texts || [],
+      pageBg: pageBgs[currentPage] || "white",
+    });
 
-    // Originals already carrying a committed edit: translate their CURRENT
-    // (edited) text under the original's id so the edit updates in place.
-    const editedByOriginalId = new Map(
-      (layer.texts || [])
-        .filter((t) => t.isEdited && t.originalId)
-        .map((t) => [t.originalId, t]),
-    );
-    const userAdded = (layer.texts || []).filter((t) => !t.originalId);
-
-    const extractedEntries = extracted
-      .filter((it) => it.str && it.str.trim())
-      .map((it) => {
-        const edited = editedByOriginalId.get(it.id);
-        const text = edited ? edited.str : it.str;
-        const budgetBlock = edited
-          ? {
-              ...it,
-              originalStr: edited.originalStr,
-              originalWidth: edited.originalWidth,
-              averageAdvance: edited.averageAdvance,
-            }
-          : it;
-        return {
-          kind: "extracted",
-          block: sanitizeColor(it, pageBg),
-          id: it.id,
-          text,
-          budget: charBudget(budgetBlock, text),
-          x: it.x,
-          y: it.y,
-        };
-      });
-    const userEntries = userAdded
-      .filter((t) => t.str && t.str.trim())
-      .map((t) => ({
-        kind: "user",
-        block: t,
-        id: t.id,
-        text: t.str,
-        budget: Math.max(Math.ceil(t.str.length * 1.25), 8),
-        x: t.x,
-        y: t.y,
-      }));
-
-    const ordered = sortByReadingOrder([...extractedEntries, ...userEntries]);
+    const ordered = sortByReadingOrder(entries);
     if (!ordered.length) {
       toast("Nothing to translate on this page", { icon: "🚫" });
       return;
@@ -214,39 +122,13 @@ export default function EditorToolbar() {
         return;
       }
 
-      // Validate REAL rendered width against the box: char budgets are only
-      // guidance, but a measured overrun visibly escapes the box and the
-      // page's right margin. Condense everything that measures over.
-      const overWidth = ordered.filter((e) => {
-        const translated = result.translations[e.id];
-        if (!translated) return false;
-        const boxWidth = e.block.originalWidth ?? e.block.width ?? 0;
-        if (!boxWidth) return false;
-        return measureWidth(translated, e.block) > boxWidth * 1.01;
-      });
-      if (overWidth.length) {
-        const condensed = await condenseTranslations(
-          overWidth.map((e) => {
-            const translated = result.translations[e.id];
-            const boxWidth = e.block.originalWidth ?? e.block.width;
-            const measured = measureWidth(translated, e.block);
-            // Back-solve a char budget from the real measurement (97% safety)
-            const backSolved = Math.max(
-              3,
-              Math.floor((translated.length * boxWidth * 0.97) / measured),
-            );
-            return { id: e.id, text: translated, budget: backSolved };
-          }),
-        );
-        if (condensed.ok) {
-          for (const e of overWidth) {
-            const shorter = condensed.translations[e.id];
-            if (shorter && shorter.length < result.translations[e.id].length) {
-              result.translations[e.id] = shorter;
-            }
-          }
-        }
-      }
+      result.translations = await fitTranslations(
+        ordered,
+        result.translations,
+        {
+          measureWidth,
+        },
+      );
 
       const updates = ordered
         .map((e) => ({

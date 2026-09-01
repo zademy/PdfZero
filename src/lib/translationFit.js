@@ -1,0 +1,177 @@
+// Keeps translated text inside its box.
+//
+// Two jobs, both extracted from the editor toolbar where they lived as
+// untested component-locals (the box-fit logic behind the accent-overflow
+// fix):
+//   buildPageEntries  — assemble every translatable block on a page
+//                       (extracted originals + their committed edits +
+//                       user-added boxes) with per-block char budgets
+//   fitTranslations   — validate each translation's REAL rendered width
+//                       against its box and condense the overruns through
+//                       the condense service, back-solving tighter budgets
+//                       from actual measurements
+//
+// The only DOM dependency (measureText) is injected, so everything here is
+// testable headless. Budgets are guidance for the request payload; measured
+// width is the truth.
+
+import { condenseTranslations as defaultCondense } from "./translation.js";
+
+// Measure a translation's REAL rendered width (px, same coordinate space as
+// block geometry) using an offscreen canvas with the block's font. Accented
+// Spanish glyphs routinely run wider than char-count estimates and overrun
+// the box / the page's right margin.
+export function createMeasureWidth() {
+  let ctx = null;
+  return (text, block) => {
+    if (!ctx) ctx = document.createElement("canvas").getContext("2d");
+    const fontSize = Math.max(block.fontSize || 12, 4);
+    ctx.font = `${block.fontItalic ? "italic " : ""}${block.fontBold ? "bold " : ""}${fontSize}px ${block.fontFamily || "Arial, Helvetica, sans-serif"}`;
+    return ctx.measureText(text).width;
+  };
+}
+
+// Guidance budget for the request payload: chars that fit the box width at
+// the original font's average advance.
+export function charBudget(block, fallbackText) {
+  const w = block.originalWidth ?? block.width;
+  const str = block.originalStr ?? fallbackText ?? "";
+  const adv =
+    block.averageAdvance ||
+    (str.length ? w / str.length : null) ||
+    (block.fontSize || 12) * 0.5;
+  return Math.max(3, Math.floor(w / adv));
+}
+
+// The operator-list color heuristic can misassign colors on some pages
+// (near-white text on a light page = invisible translation). Snap near-white
+// text to black when the page background is also light.
+export function isLightColor(c) {
+  if (!c) return true;
+  let r;
+  let g;
+  let b;
+  if (c[0] === "#") {
+    const n = parseInt(c.slice(1, 7), 16);
+    r = n >> 16;
+    g = (n >> 8) & 255;
+    b = n & 255;
+  } else {
+    const m = c.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/i);
+    if (m) {
+      r = +m[1];
+      g = +m[2];
+      b = +m[3];
+    } else {
+      return /^(white|whitesmoke|snow|ghostwhite)$/i.test(c);
+    }
+  }
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.85;
+}
+
+export function sanitizeColor(block, pageBg) {
+  return isLightColor(block.color) && isLightColor(pageBg)
+    ? { ...block, color: "#000000" }
+    : block;
+}
+
+// Back-solve a char budget from a real measurement (97% safety factor).
+export function backSolvedBudget(translatedLength, boxWidth, measured) {
+  return Math.max(
+    3,
+    Math.floor((translatedLength * boxWidth * 0.97) / measured),
+  );
+}
+
+// Assemble the page's translatable entries. Originals already carrying a
+// committed edit translate their CURRENT (edited) text under the original's
+// id so the edit updates in place — using the original's geometry for the
+// budget. User-added boxes get a generous 1.25x budget (min 8).
+export function buildPageEntries({ extractedItems, layerTexts, pageBg }) {
+  const editedByOriginalId = new Map(
+    (layerTexts || [])
+      .filter((t) => t.isEdited && t.originalId)
+      .map((t) => [t.originalId, t]),
+  );
+  const userAdded = (layerTexts || []).filter((t) => !t.originalId);
+
+  const extractedEntries = (extractedItems || [])
+    .filter((it) => it.str && it.str.trim())
+    .map((it) => {
+      const edited = editedByOriginalId.get(it.id);
+      const text = edited ? edited.str : it.str;
+      const budgetBlock = edited
+        ? {
+            ...it,
+            originalStr: edited.originalStr,
+            originalWidth: edited.originalWidth,
+            averageAdvance: edited.averageAdvance,
+          }
+        : it;
+      return {
+        kind: "extracted",
+        block: sanitizeColor(it, pageBg),
+        id: it.id,
+        text,
+        budget: charBudget(budgetBlock, text),
+        x: it.x,
+        y: it.y,
+      };
+    });
+
+  const userEntries = userAdded
+    .filter((t) => t.str && t.str.trim())
+    .map((t) => ({
+      kind: "user",
+      block: t,
+      id: t.id,
+      text: t.str,
+      budget: Math.max(Math.ceil(t.str.length * 1.25), 8),
+      x: t.x,
+      y: t.y,
+    }));
+
+  return [...extractedEntries, ...userEntries];
+}
+
+// Validate REAL rendered width against the box and condense the overruns.
+// Char budgets are only guidance; a measured overrun visibly escapes the box
+// and the page's right margin. Returns a NEW translations map — shorter
+// condensations replace their originals, everything else passes through.
+export async function fitTranslations(
+  ordered,
+  translations,
+  { measureWidth, condense = defaultCondense },
+) {
+  const overWidth = ordered.filter((e) => {
+    const translated = translations[e.id];
+    if (!translated) return false;
+    const boxWidth = e.block.originalWidth ?? e.block.width ?? 0;
+    if (!boxWidth) return false;
+    return measureWidth(translated, e.block) > boxWidth * 1.01;
+  });
+  if (!overWidth.length) return translations;
+
+  const condensed = await condense(
+    overWidth.map((e) => {
+      const translated = translations[e.id];
+      const boxWidth = e.block.originalWidth ?? e.block.width;
+      const measured = measureWidth(translated, e.block);
+      return {
+        id: e.id,
+        text: translated,
+        budget: backSolvedBudget(translated.length, boxWidth, measured),
+      };
+    }),
+  );
+  if (!condensed.ok) return translations;
+
+  const out = { ...translations };
+  for (const e of overWidth) {
+    const shorter = condensed.translations[e.id];
+    if (shorter && shorter.length < out[e.id].length) {
+      out[e.id] = shorter;
+    }
+  }
+  return out;
+}
