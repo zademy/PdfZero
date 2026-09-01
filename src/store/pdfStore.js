@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { familyCss } from "../lib/fontRegistry.js";
 
 const MAX_HISTORY = 100;
 const OCR_HISTORY_MAX = 3;
@@ -421,6 +422,18 @@ export const usePdfStore = create((set, get) => ({
         ocrActive: entry,
       };
     }),
+
+  // A font change is TWO coupled fields: fontName (export key) + fontFamily
+  // (CSS stack for canvas render/measure). Writing them together here makes a
+  // half-applied font change impossible — the properties-panel bug where only
+  // fontName was updated left canvas + visual export rendering the old stack.
+  setFont: (pageNum, block, family) => {
+    const { updateBlock } = get();
+    updateBlock(pageNum, block, {
+      fontName: family,
+      fontFamily: familyCss(family),
+    });
+  },
 
   // Show a history entry in the modal (or close it with null).
   setOcrActive: (entry) => set({ ocrActive: entry }),

@@ -179,7 +179,9 @@ describe("updateBlock — one action for the commit-then-update dance", () => {
   it("patches a normal (user-added) block in place", () => {
     const s = usePdfStore.getState();
     s.addTextBlock(1, { ...userBlock, id: "plain-1" });
-    usePdfStore.getState().updateBlock(1, { ...userBlock, id: "plain-1" }, { fontSize: 20 });
+    usePdfStore
+      .getState()
+      .updateBlock(1, { ...userBlock, id: "plain-1" }, { fontSize: 20 });
 
     const layer = usePdfStore.getState().editLayers[1];
     expect(layer.texts.find((t) => t.id === "plain-1").fontSize).toBe(20);
@@ -187,7 +189,13 @@ describe("updateBlock — one action for the commit-then-update dance", () => {
 
   it("commits an uncommitted extracted block and patches the edited copy", () => {
     const s = usePdfStore.getState();
-    const extracted = { ...itemA, id: "ext-1", isExtracted: true, glyphs: [], kerning: [] };
+    const extracted = {
+      ...itemA,
+      id: "ext-1",
+      isExtracted: true,
+      glyphs: [],
+      kerning: [],
+    };
     s.setSelectedElement(extracted, 1);
 
     usePdfStore.getState().updateBlock(1, extracted, { color: "#ff0000" });
@@ -204,19 +212,44 @@ describe("updateBlock — one action for the commit-then-update dance", () => {
 
   it("patches an already-edited extracted block in place", () => {
     const s = usePdfStore.getState();
-    const extracted = { ...itemA, id: "ext-2", isExtracted: true, glyphs: [], kerning: [] };
+    const extracted = {
+      ...itemA,
+      id: "ext-2",
+      isExtracted: true,
+      glyphs: [],
+      kerning: [],
+    };
     s.setSelectedElement(extracted, 1);
     usePdfStore.getState().updateBlock(1, extracted, { color: "#ff0000" });
 
     // second edit targets the committed copy directly
-    const edited = usePdfStore.getState().editLayers[1].texts.find(
-      (t) => t.id === "edited-ext-2",
-    );
-    usePdfStore.getState().updateBlock(1, { ...edited, isEdited: true }, { color: "#00ff00" });
+    const edited = usePdfStore
+      .getState()
+      .editLayers[1].texts.find((t) => t.id === "edited-ext-2");
+    usePdfStore
+      .getState()
+      .updateBlock(1, { ...edited, isEdited: true }, { color: "#00ff00" });
 
     const finalBlock = usePdfStore
       .getState()
       .editLayers[1].texts.find((t) => t.id === "edited-ext-2");
     expect(finalBlock.color).toBe("#00ff00");
+  });
+});
+
+describe("setFont — atomic two-field font change", () => {
+  beforeEach(() => {
+    usePdfStore.getState().reset();
+  });
+
+  it("writes fontName AND fontFamily together on a plain block", () => {
+    const s = usePdfStore.getState();
+    s.addTextBlock(1, { ...userBlock, id: "f-1" });
+    usePdfStore.getState().setFont(1, { ...userBlock, id: "f-1" }, "NotoSerif");
+    const b = usePdfStore
+      .getState()
+      .editLayers[1].texts.find((t) => t.id === "f-1");
+    expect(b.fontName).toBe("NotoSerif");
+    expect(b.fontFamily).toBe('"Noto Serif", Georgia, serif');
   });
 });

@@ -12,8 +12,10 @@ import {
 import toast from "react-hot-toast";
 import { usePdfStore } from "../../store/pdfStore.js";
 import { addWatermark, downloadBytes } from "../../lib/pdfExporter.js";
-import { classifyFont } from "../../lib/pdfRenderer.js";
-import { FAMILIES as FONT_FAMILIES } from "../../lib/fontRegistry.js";
+import {
+  FAMILIES as FONT_FAMILIES,
+  canonicalFamily,
+} from "../../lib/fontRegistry.js";
 import styles from "./PropertiesPanel.module.css";
 
 // Short, recognizable label for one OCR history entry: the first words of
@@ -52,6 +54,7 @@ export default function PropertiesPanel() {
     pageCount,
     editLayers,
     updateBlock,
+    setFont,
     ocrHistory,
     ocrActive,
     setOcrActive,
@@ -157,15 +160,17 @@ export default function PropertiesPanel() {
             {(selectedElement.str?.length || 0) > 60 ? "…" : ""}
           </div>
 
-          {/* Font family — controlled; classifyFont canonicalizes whatever the
+          {/* Font family — controlled; the registry canonicalizes whatever the
               block carries (embedded PDF name or previous web-name choice) to
               one of the three export families so the picker always matches. */}
           <div className={styles.row}>
             <span className={styles.lbl}>Font</span>
             <select
               className={styles.fontCtrl}
-              value={classifyFont(selectedElement.fontName || "").family}
-              onChange={(e) => updateProp({ fontName: e.target.value })}
+              value={canonicalFamily(selectedElement)}
+              onChange={(e) =>
+                setFont(selectedElementPage, selectedElement, e.target.value)
+              }
             >
               {FONT_FAMILIES.map((f) => (
                 <option

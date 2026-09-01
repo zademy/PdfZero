@@ -3,6 +3,8 @@ import {
   CUSTOM_PATTERNS,
   FAMILIES,
   FAMILY_VALUES,
+  canonicalFamily,
+  classifyFont,
   familyCss,
   getFamily,
   isCustomFamily,
@@ -59,5 +61,29 @@ describe("fontRegistry", () => {
   it("falls back to a css stack for unknown values", () => {
     expect(familyCss("NoSuchFont")).toBe(FAMILIES[0].css);
     expect(familyCss("Lato")).toBe(getFamily("Lato").css);
+  });
+});
+
+describe("canonicalFamily — one picker-value derivation for all consumers", () => {
+  it("passes through a fontName that already names a registry family", () => {
+    expect(canonicalFamily({ fontName: "NotoSerif" })).toBe("NotoSerif");
+  });
+
+  it("classifies from the CSS stack when fontName is absent", () => {
+    expect(canonicalFamily({ fontFamily: "Georgia, serif" })).toBe(
+      "Times-Roman",
+    );
+  });
+
+  it("falls back to Helvetica for blocks with no font reference", () => {
+    expect(canonicalFamily({})).toBe("Helvetica");
+    expect(canonicalFamily(null)).toBe("Helvetica");
+  });
+
+  it("owns classification: classifyFont detects custom families before generic buckets", () => {
+    expect(classifyFont("NotoSerif-Bold").family).toBe("NotoSerif");
+    expect(classifyFont("Lato-Regular").family).toBe("Lato");
+    expect(classifyFont("ArialMT").family).toBe("Helvetica");
+    expect(classifyFont("g_d0_f1").family).toBe("Helvetica");
   });
 });

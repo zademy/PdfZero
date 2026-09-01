@@ -26,7 +26,7 @@ import {
 import toast from "react-hot-toast";
 import { usePdfStore } from "../../store/pdfStore.js";
 import { exportPdf, downloadBytes } from "../../lib/pdfExporter.js";
-import { renderPage, classifyFont } from "../../lib/pdfRenderer.js";
+import { renderPage } from "../../lib/pdfRenderer.js";
 import { detectOllama, ollamaOcrCanvas } from "../../lib/ollamaOcr.js";
 import { ocrCanvas, terminateOcr } from "../../lib/ocrEngine.js";
 import OcrModal from "./OcrModal.jsx";
@@ -54,7 +54,7 @@ const TOOLS = [
 // Font families come from fontRegistry.js — the single list shared with the
 // properties panel, classifyFont, and the vector exporter (custom families
 // embed real TTFs; labels preview in their own typeface).
-import { FAMILIES as FONTS } from "../../lib/fontRegistry.js";
+import { FAMILIES as FONTS, canonicalFamily } from "../../lib/fontRegistry.js";
 
 export default function EditorToolbar() {
   const {
@@ -75,6 +75,7 @@ export default function EditorToolbar() {
     selectedElement,
     selectedElementPage,
     updateBlock,
+    setFont,
     undoEdit,
     redoEdit,
     getLayer,
@@ -288,19 +289,9 @@ export default function EditorToolbar() {
   // Sync toolbar state when selection changes
   useEffect(() => {
     if (!sel) return;
-    // Canonicalize through classifyFont: the exported font is always one of
-    // the three base-14 families, so the dropdown must mirror that instead
-    // of guessing from the CSS stack (old contains-match picked "Arial" for
-    // a "Helvetica, Arial" stack and showed families export can't honor).
-    const family = sel.fontName || classifyFont(sel.fontFamily || "").family;
-    const match =
-      FONTS.find((f) => f.value === family) ||
-      FONTS.find((f) =>
-        (sel.fontFamily || "")
-          .toLowerCase()
-          .includes(f.value.split("-")[0].toLowerCase()),
-      );
-    setFontFamily(match ? match.value : "Helvetica");
+    // Canonical picker value through the registry — the dropdown mirrors what
+    // export will honor, never a guess from the CSS stack.
+    setFontFamily(canonicalFamily(sel));
     setFontSize(Math.round(sel.fontSize || 12));
     setBold(sel.fontBold || false);
     setItalic(sel.fontItalic || false);
@@ -327,8 +318,7 @@ export default function EditorToolbar() {
 
   const handleFontFamily = (value) => {
     setFontFamily(value);
-    const f = FONTS.find((x) => x.value === value);
-    applyFormat({ fontName: value, fontFamily: f ? f.css : value });
+    setFont(selectedElementPage, sel, value);
   };
 
   const handleFontSize = (v) => {
