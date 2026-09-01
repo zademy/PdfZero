@@ -6,7 +6,11 @@
 //   - page rendering (pdfjs canvas at the OCR-friendly scale)
 //   - engine choice: local Ollama glm-ocr preferred, tesseract.js fallback
 //   - the engines' incompatible contracts (tesseract returns words[] with
-//     geometry, Ollama a sanitized string) normalized onto `raw`
+//     geometry, Ollama a raw unsanitized string) normalized onto `raw`
+//   - deterministic block cleanup (ocrBlocks.js, ADR 0001): one pass over
+//     the raw text right after the engine, before GLM formatting — echo
+//     blocks drop there, so both the formatter and the no-key fallback
+//     see clean text
 //   - tesseract worker termination (always, even on failure — leaking
 //     workers degrades the page)
 //   - best-effort GLM formatting into page-structure Markdown (gated on the
@@ -17,6 +21,7 @@
 import { renderPage } from "./pdfRenderer.js";
 import { detectOllama, ollamaOcrCanvas } from "./ollamaOcr.js";
 import { ocrCanvas, terminateOcr } from "./ocrEngine.js";
+import { cleanOcrText } from "./ocrBlocks.js";
 import { formatOcrMarkdown } from "./ocrFormat.js";
 import { getGlmApiKey } from "./translation.js";
 
@@ -54,6 +59,9 @@ export async function ocrPage(pageNum, { onStage, onProgress } = {}) {
       raw = words.map((w) => w.str).join(" ");
       engine = "tesseract.js";
     }
+
+    // Deterministic cleanup, one pass, engine output → blocks (ADR 0001).
+    raw = cleanOcrText(raw);
 
     // Best-effort formatting: gated on the key, never throws.
     let markdown = null;

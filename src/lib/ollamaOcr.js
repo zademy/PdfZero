@@ -10,8 +10,11 @@
 // - The model is a raw-completion single-purpose OCR: prompt is literally
 //   "ocr", no chat template, temperature 0.
 // - With generic prompts it can loop, repeating the same fenced block many
-//   times. We cap generation (num_predict), add repeat_penalty, and collapse
-//   consecutive duplicate blocks client-side in sanitizeOcrText().
+//   times. We cap generation (num_predict), add repeat_penalty, and the
+//   deterministic block cleanup (ocrBlocks.js, ADR 0001) collapses the loop
+//   in the OCR pipeline — this module returns raw, unsanitized text.
+
+import { cleanOcrText } from "./ocrBlocks.js";
 
 const OLLAMA_BASE = "http://localhost:11434";
 const PREFERRED_MODEL_PREFIX = "glm-ocr";
@@ -57,32 +60,11 @@ export function buildOcrRequestBody(model, imageBase64) {
 }
 
 /**
- * Collapse the repetition loop observed in glm-ocr output: the same block
- * (often wrapped in markdown fences) repeated consecutively. Blocks are
- * compared after normalization (trimmed, fence lines dropped), and a block
- * is dropped when it matches the previously kept one. Non-consecutive
- * repetition (genuine recurring headers) is preserved.
+ * Thin delegate to the shared block cleanup (ocrBlocks.js, ADR 0001).
+ * Kept for the public surface: existing callers/tests import this name.
  */
 export function sanitizeOcrText(raw) {
-  if (!raw) return "";
-  const blocks = String(raw)
-    .replace(/\r\n?/g, "\n")
-    .split(/\n\s*\n/)
-    .map((block) =>
-      block
-        .split("\n")
-        .filter((line) => !/^\s*```/.test(line))
-        .join("\n")
-        .trim(),
-    )
-    .filter(Boolean);
-
-  const kept = [];
-  for (const block of blocks) {
-    if (kept.length && kept[kept.length - 1] === block) continue;
-    kept.push(block);
-  }
-  return kept.join("\n\n").trim();
+  return cleanOcrText(raw);
 }
 
 /**
@@ -115,7 +97,8 @@ async function canvasToBase64(canvas) {
 
 /**
  * OCR a rendered page canvas through the local Ollama model.
- * @returns {Promise<string>} sanitized plain text.
+ * @returns {Promise<string>} raw, unsanitized plain text — block cleanup
+ *   is owned by the OCR pipeline (ADR 0001).
  */
 export async function ollamaOcrCanvas(canvas, model) {
   const imageBase64 = await canvasToBase64(canvas);
@@ -127,5 +110,5 @@ export async function ollamaOcrCanvas(canvas, model) {
   });
   if (!res.ok) throw new Error(`Ollama OCR failed: HTTP ${res.status}`);
   const data = await res.json();
-  return sanitizeOcrText(data.response || "");
+  return data.response || "";
 }

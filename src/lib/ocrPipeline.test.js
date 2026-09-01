@@ -31,14 +31,16 @@ describe("ocrPage — the whole OCR flow behind one function", () => {
     formatOcrMarkdown.mockResolvedValue({ ok: true, markdown: "# md" });
   });
 
-  it("prefers Ollama when installed and returns its sanitized string", async () => {
+  it("prefers Ollama and cleans its raw blocks onto raw", async () => {
     detectOllama.mockResolvedValue({ model: "glm-ocr:latest" });
-    ollamaOcrCanvas.mockResolvedValue("Hola mundo");
+    const block = "Hola mundo";
+    const looped = Array.from({ length: 4 }, () => block).join("\n\n");
+    ollamaOcrCanvas.mockResolvedValue(looped);
 
     const r = await ocrPage(2);
 
     expect(r).toEqual({
-      raw: "Hola mundo",
+      raw: block,
       markdown: null,
       engine: "glm-ocr:latest",
     });
@@ -75,12 +77,17 @@ describe("ocrPage — the whole OCR flow behind one function", () => {
   });
 
   it("formats via GLM only when the key exists, and never throws on format failure", async () => {
-    detectOllama.mockResolvedValue(null);
-    ocrCanvas.mockResolvedValue([{ str: "text" }]);
+    detectOllama.mockResolvedValue({ model: "glm-ocr:latest" });
+    const block = "Hola mundo";
+    ollamaOcrCanvas.mockResolvedValue(
+      Array.from({ length: 4 }, () => block).join("\n\n"),
+    );
 
     getGlmApiKey.mockReturnValue("k");
     const ok = await ocrPage(1);
     expect(ok.markdown).toBe("# md");
+    // The formatter sees the cleaned text, not the engine's raw echo.
+    expect(formatOcrMarkdown).toHaveBeenCalledWith(block);
 
     formatOcrMarkdown.mockRejectedValue(new Error("net down"));
     const fail = await ocrPage(1);
