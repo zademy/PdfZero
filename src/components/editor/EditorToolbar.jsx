@@ -26,7 +26,7 @@ import {
 import toast from "react-hot-toast";
 import { usePdfStore } from "../../store/pdfStore.js";
 import { exportPdf, downloadBytes } from "../../lib/pdfExporter.js";
-import { ocrPage } from "../../lib/ocrPipeline.js";
+import { ocrPage, OcrUnavailableError } from "../../lib/ocrPipeline.js";
 import OcrModal from "./OcrModal.jsx";
 import {
   translatePage,
@@ -91,7 +91,6 @@ export default function EditorToolbar() {
   } = usePdfStore();
 
   const [ocrRunning, setOcrRunning] = useState(false);
-  const [ocrProgress, setOcrProgress] = useState(0);
   const [translatingPage, setTranslatingPage] = useState(false);
 
   // Offscreen-canvas measurer from lib/translationFit.js — one shared 2d
@@ -304,7 +303,6 @@ export default function EditorToolbar() {
   const handleOcr = async () => {
     if (!file || ocrRunning) return;
     setOcrRunning(true);
-    setOcrProgress(0);
     const tid = toast.loading(`Running OCR on page ${currentPage}...`);
     try {
       const result = await ocrPage(currentPage, {
@@ -313,14 +311,9 @@ export default function EditorToolbar() {
             render: `Running OCR on page ${currentPage}...`,
             detect: "Detecting OCR engine...",
             ollama: `OCR via Ollama (${detail})...`,
-            tesseract: "OCR via tesseract.js...",
             format: "Formatting with GLM...",
           };
           if (labels[stage]) toast.loading(labels[stage], { id: tid });
-        },
-        onProgress: (pct) => {
-          setOcrProgress(pct);
-          toast.loading(`OCR: ${pct}%`, { id: tid });
         },
       });
       if (!result.raw.trim()) {
@@ -330,10 +323,14 @@ export default function EditorToolbar() {
       toast.success("OCR complete — review the result", { id: tid });
       addOcrResult({ ...result, page: currentPage });
     } catch (e) {
-      toast.error("OCR failed: " + e.message, { id: tid });
+      toast.error(
+        e instanceof OcrUnavailableError
+          ? e.message
+          : "OCR failed: " + e.message,
+        { id: tid },
+      );
     } finally {
       setOcrRunning(false);
-      setOcrProgress(0);
     }
   };
 
@@ -513,7 +510,7 @@ export default function EditorToolbar() {
       >
         {ocrRunning ? (
           <>
-            <Loader2 size={13} className={styles.spin} /> OCR {ocrProgress}%
+            <Loader2 size={13} className={styles.spin} /> OCR…
           </>
         ) : (
           <>

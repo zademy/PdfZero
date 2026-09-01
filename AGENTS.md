@@ -4,7 +4,7 @@ Browser-only PDF editor: every operation (render, edit, OCR, export, encrypt) ru
 
 ## Commands
 
-- `npm run dev` — Vite dev server (needs the COOP/COEP headers from `vite.config.js`; they are load-bearing for OCR workers).
+- `npm run dev` — Vite dev server (needs the COOP/COEP headers from `vite.config.js`; kept deliberately — see build gotchas).
 - `npm run build` / `npm run preview`
 - `npm run lint` — ESLint over `src/**/*.js` (JSX is excluded until `eslint-plugin-react` is adopted; see `eslint.config.js`). Run it after every change.
 - `npm test` — Vitest suite (`src/lib/*.test.js`, `src/store/*.test.js`). Run it after touching `src/lib/` or the store.
@@ -37,9 +37,14 @@ src/
                       downloadBytes, compress (iterative raster to target size),
                       encryptPDF via @pdfsmaller/pdf-encrypt
     pdfTextLayout.js  text geometry: textChars, layoutTextForBlock, splitTextLines
-    ocrEngine.js      tesseract.js lazy worker: initOcr, ocrCanvas, terminateOcr
-    ollamaOcr.js      optional local Ollama OCR (glm-ocr): detectOllama,
-                      ollamaOcrCanvas, sanitizeOcrText (collapse repeat loops)
+    ocrPipeline.js    one-function OCR flow: ocrPage renders the page, runs
+                      the single engine, cleans blocks (ocrBlocks, ADR 0001),
+                      GLM-formats; throws OcrUnavailableError when Ollama or
+                      the glm-ocr model is missing (ADR 0002)
+    ocrBlocks.js      deterministic OCR block cleanup (ADR 0001): cleanOcrText
+    ollamaOcr.js      the only OCR engine (ADR 0002): local Ollama glm-ocr —
+                      detectOllama, ollamaOcrCanvas, sanitizeOcrText (thin
+                      delegate to cleanOcrText)
     ocrFormat.js      GLM post-processing: formatOcrMarkdown (page-structure
                       Markdown), stripMarkdownFences; glmChat lives in
                       translation.js
@@ -80,8 +85,8 @@ Tool pages (`src/pages/Tools.jsx`) all follow the same shape: `FileDropper` → 
 
 ## Build gotchas (do not "simplify" these)
 
-- `vite.config.js`: `optimizeDeps.exclude: ['pdfjs-dist']`, `worker.format: 'es'`, `codeSplitting` groups for `pdf-lib`/`pdfjs` (Vite 8/rolldown replaced `manualChunks` — do not revert), and COOP/COEP headers on the dev server. Removing any of these breaks pdfjs workers or tesseract.js.
-- OCR worker lifecycle: `initOcr` lazily creates one tesseract worker; call `terminateOcr` when done (see `ocrEngine.js`) — leaking workers degrades the page.
+- `vite.config.js`: `optimizeDeps.exclude: ['pdfjs-dist']`, `worker.format: 'es'`, `codeSplitting` groups for `pdf-lib`/`pdfjs` (Vite 8/rolldown replaced `manualChunks` — do not revert), and COOP/COEP headers on the dev server. Removing any of these breaks pdfjs workers. The COOP/COEP headers were load-bearing for tesseract.js (now removed, ADR 0002); they are deliberately kept — removing them is a separate follow-up.
+- OCR requires a local Ollama server with the glm-ocr model (ADR 0002). There is no fallback engine: `ocrPage` throws `OcrUnavailableError` when detection fails, and the UI surfaces it as one actionable toast. The rest of the editor works without Ollama.
 - Font fidelity: `index.html` loads Noto Sans/Serif, Lato, Merriweather as visual substitutes for embedded PDF fonts; `classifyFont` maps embedded fonts onto these families. A new substitute family must be added in both places.
 
 ## Conventions

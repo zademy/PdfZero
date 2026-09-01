@@ -34,7 +34,7 @@ const FEATURES = [
   {
     icon: ScanLine,
     label: "OCR scanner",
-    desc: "Make scanned and image PDFs searchable and editable with Tesseract.js - runs 100% offline.",
+    desc: "Make scanned and image PDFs searchable and editable with a local Ollama OCR model - runs 100% on your machine.",
     tag: "AI-powered",
   },
   {
@@ -437,7 +437,7 @@ export default function Landing() {
             </a>
           </div>
           <div className={styles.footerNote}>
-            MIT License - Built with pdf-lib, PDF.js, Tesseract.js - No
+            MIT License - Built with pdf-lib, PDF.js, Ollama (glm-ocr) - No
             tracking, no analytics
           </div>
         </div>

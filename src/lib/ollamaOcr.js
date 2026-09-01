@@ -1,10 +1,10 @@
-// Optional enhanced OCR engine: a local Ollama server (default
+// The OCR engine: a local Ollama server (default
 // http://localhost:11434) running a vision OCR model such as glm-ocr.
 //
-// This is progressive enhancement over the always-available tesseract.js
-// engine (src/lib/ocrEngine.js): everything still runs on the user's
-// machine — no cloud, no uploads — and the app works unchanged when Ollama
-// is not installed.
+// Single engine by decision (ADR 0002): everything runs on the user's
+// machine — no cloud, no uploads. detectOllama returns null when the
+// server or the model is missing; the OCR pipeline (ocrPipeline.js)
+// turns that into OcrUnavailableError for the UI to surface.
 //
 // Quirks handled here (measured against glm-ocr 1.1B):
 // - The model is a raw-completion single-purpose OCR: prompt is literally

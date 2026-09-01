@@ -41,7 +41,7 @@ import {
   protectPdf,
 } from "../lib/pdfExporter.js";
 import { loadPdf, renderThumbnail, renderPage } from "../lib/pdfRenderer.js";
-import { ocrCanvas } from "../lib/ocrEngine.js";
+import { ocrPage, OcrUnavailableError } from "../lib/ocrPipeline.js";
 import styles from "./Tools.module.css";
 
 /* ─────────────────── shared helpers ─────────────────── */
@@ -1461,16 +1461,13 @@ function OcrTool() {
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(0);
-  const navigate = useNavigate();
 
   const handleOcr = async () => {
     if (!file) return;
     setBusy(true);
     setProgress(0);
-    const tid = toast.loading("Initialising OCR engine...");
+    const tid = toast.loading("Detecting OCR engine...");
     try {
-      const { renderPage } = await import("../lib/pdfRenderer.js");
-      const { ocrCanvas } = await import("../lib/ocrEngine.js");
       const buf = await file.arrayBuffer();
       const doc = await loadPdf(buf.slice(0));
       const total = doc.numPages;
@@ -1478,17 +1475,12 @@ function OcrTool() {
 
       for (let p = 1; p <= total; p++) {
         toast.loading(`OCR page ${p}/${total}...`, { id: tid });
-        const { canvas } = await renderPage(p, 1);
-        const words = await ocrCanvas(canvas, (pct) =>
-          setProgress(Math.round(((p - 1) / total) * 100 + pct / total)),
-        );
-        if (words.length)
-          allText.push(
-            `--- Page ${p} ---\n` + words.map((w) => w.str).join(" "),
-          );
+        const { raw } = await ocrPage(p, { format: false });
+        setProgress(Math.round((p / total) * 100));
+        if (raw.trim()) allText.push(`--- Page ${p} ---\n` + raw);
       }
 
-      // Download as searchable text file
+      // Download as text file
       const blob = new Blob([allText.join("\n\n")], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1498,7 +1490,12 @@ function OcrTool() {
       URL.revokeObjectURL(url);
       toast.success(`OCR complete — ${total} pages`, { id: tid });
     } catch (e) {
-      toast.error("OCR failed: " + e.message, { id: tid });
+      toast.error(
+        e instanceof OcrUnavailableError
+          ? e.message
+          : "OCR failed: " + e.message,
+        { id: tid },
+      );
     }
     setBusy(false);
     setProgress(0);
@@ -1507,7 +1504,7 @@ function OcrTool() {
   return (
     <ToolShell
       title="OCR Scanner"
-      desc="Extract text from scanned or image-based PDFs using Tesseract.js — runs 100% offline."
+      desc="Extract text from scanned or image-based PDFs with a local Ollama OCR model (glm-ocr) — runs 100% on your machine."
     >
       <FileDropper file={file} onFile={setFile} onClear={() => setFile(null)} />
       {busy && (

@@ -31,7 +31,6 @@
     "react-hot-toast": "^2.4.1",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.18.3",
-    "tesseract.js": "^7.0.0",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
