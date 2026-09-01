@@ -189,6 +189,20 @@ export const usePdfStore = create((set, get) => ({
       };
     }),
 
+  // One action for "apply a patch to the selected/any block" — owns the
+  // commit-then-update dance so callers can't get it wrong: an uncommitted
+  // extracted item is committed first (edited-<id> copy + whiteout mark) and
+  // the patch lands on that copy; anything else is patched in place.
+  updateBlock: (pageNum, block, patch) => {
+    const { commitExtractedEdit, updateTextBlock } = get();
+    if (block?.isExtracted && !block.isEdited) {
+      commitExtractedEdit(pageNum, block, block.str);
+      updateTextBlock(pageNum, `edited-${block.id}`, patch);
+    } else {
+      updateTextBlock(pageNum, block.id, patch);
+    }
+  },
+
   removeTextBlock: (pageNum, id) =>
     set((s) => {
       const layer = s.editLayers[pageNum];

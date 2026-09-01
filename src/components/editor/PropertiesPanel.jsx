@@ -51,8 +51,7 @@ export default function PropertiesPanel() {
     fileName,
     pageCount,
     editLayers,
-    updateTextBlock,
-    commitExtractedEdit,
+    updateBlock,
     ocrHistory,
     ocrActive,
     setOcrActive,
@@ -73,24 +72,11 @@ export default function PropertiesPanel() {
     0,
   );
 
-  // Update a property on the selected element (works for both store & extracted)
+  // Update a property on the selected element — the commit-then-update dance
+  // for uncommitted extracted blocks lives in the store's updateBlock.
   const updateProp = (updates) => {
     if (!selectedElement || !selectedElementPage) return;
-    const targetId =
-      selectedElement.isExtracted && !selectedElement.isEdited
-        ? `edited-${selectedElement.id}`
-        : selectedElement.id;
-    // For extracted blocks that haven't been committed yet, commitExtractedEdit
-    // For store blocks (user-added or already-committed), updateTextBlock
-    if (selectedElement.isExtracted && !selectedElement.isEdited) {
-      commitExtractedEdit(
-        selectedElementPage,
-        selectedElement,
-        selectedElement.str,
-      );
-    }
-    updateTextBlock(selectedElementPage, targetId, updates);
-    // Also update selectedElement in store so UI reflects immediately
+    updateBlock(selectedElementPage, selectedElement, updates);
   };
 
   const handleWatermark = async () => {

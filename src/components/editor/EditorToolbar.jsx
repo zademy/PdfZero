@@ -74,8 +74,7 @@ export default function EditorToolbar() {
     setOcrActive,
     selectedElement,
     selectedElementPage,
-    updateTextBlock,
-    commitExtractedEdit,
+    updateBlock,
     undoEdit,
     redoEdit,
     getLayer,
@@ -319,17 +318,11 @@ export default function EditorToolbar() {
     sel?.color,
   ]);
 
-  // Apply a formatting update to the selected element
+  // Apply a formatting update to the selected element (commit-then-update
+  // for uncommitted extracted blocks is owned by the store action)
   const applyFormat = (updates) => {
     if (!sel || !selectedElementPage) return;
-
-    if (sel.isExtracted && !sel.isEdited) {
-      // Commit the extracted block first, then update
-      commitExtractedEdit(selectedElementPage, sel, sel.str);
-      updateTextBlock(selectedElementPage, `edited-${sel.id}`, updates);
-    } else {
-      updateTextBlock(selectedElementPage, sel.id, updates);
-    }
+    updateBlock(selectedElementPage, sel, updates);
   };
 
   const handleFontFamily = (value) => {
