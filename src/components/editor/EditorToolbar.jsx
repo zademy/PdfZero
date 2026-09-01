@@ -35,7 +35,9 @@ import {
   translatePage,
   condenseTranslations,
   sortByReadingOrder,
+  getGlmApiKey,
 } from "../../lib/translation.js";
+import { formatOcrMarkdown } from "../../lib/ocrFormat.js";
 import DropZone from "../ui/DropZone.jsx";
 import styles from "./EditorToolbar.module.css";
 
@@ -436,8 +438,21 @@ export default function EditorToolbar() {
         toast.error("No text found", { id: tid });
         return;
       }
+      // Structure the raw OCR into page-like Markdown with GLM (same client
+      // as translation). Best-effort: on failure the modal opens with the
+      // raw text only.
+      let markdown = null;
+      if (getGlmApiKey()) {
+        toast.loading("Formatting with GLM...", { id: tid });
+        try {
+          const fmt = await formatOcrMarkdown(text);
+          if (fmt.ok) markdown = fmt.markdown;
+        } catch {
+          /* keep markdown null */
+        }
+      }
       toast.success("OCR complete — review the result", { id: tid });
-      setOcrResult({ text, engine, page: currentPage });
+      setOcrResult({ raw: text, markdown, engine, page: currentPage });
     } catch (e) {
       toast.error("OCR failed: " + e.message, { id: tid });
     } finally {

@@ -219,6 +219,28 @@ async function requestTranslation(raw, apiKey, systemPrompt) {
   return { ok: true, translated: translated.trim() };
 }
 
+/**
+ * Generic single-turn GLM chat shared by non-translation features (e.g. the
+ * OCR markdown formatter). Resolves the key itself.
+ * @returns {Promise<{ok: true, text: string} | {ok: false, code: string, message: string}>}
+ */
+export async function glmChat(userText, systemPrompt) {
+  const raw = String(userText ?? "");
+  if (!raw.trim()) {
+    return { ok: false, code: "EMPTY_TEXT", message: "Nothing to send." };
+  }
+  const apiKey = getGlmApiKey();
+  if (!apiKey) {
+    return {
+      ok: false,
+      code: "MISSING_KEY",
+      message: "No API key configured.",
+    };
+  }
+  const res = await requestTranslation(raw, apiKey, systemPrompt);
+  return res.ok ? { ok: true, text: res.translated } : res;
+}
+
 export async function translateText(text) {
   const raw = String(text ?? "");
   if (!raw.trim()) {

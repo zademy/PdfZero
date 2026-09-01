@@ -85,9 +85,31 @@ export function sanitizeOcrText(raw) {
   return kept.join("\n\n").trim();
 }
 
+/**
+ * Vision encoders aggressively downscale oversized images, which loses
+ * detail on dense pages (observed as partial extraction). Render the page
+ * small enough that every part stays inside the encoder's native window:
+ * resample so the longest side is ≤ MAX_SIDE px with smooth filtering.
+ */
+const MAX_SIDE = 1600;
+
+function downscaleCanvas(canvas) {
+  const max = Math.max(canvas.width, canvas.height);
+  if (max <= MAX_SIDE) return canvas;
+  const ratio = MAX_SIDE / max;
+  const out = document.createElement("canvas");
+  out.width = Math.round(canvas.width * ratio);
+  out.height = Math.round(canvas.height * ratio);
+  const ctx = out.getContext("2d");
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+  ctx.drawImage(canvas, 0, 0, out.width, out.height);
+  return out;
+}
+
 /** Canvas → base64 PNG (no data: prefix, as Ollama expects). */
 async function canvasToBase64(canvas) {
-  const dataUrl = canvas.toDataURL("image/png");
+  const dataUrl = downscaleCanvas(canvas).toDataURL("image/png");
   return dataUrl.slice(dataUrl.indexOf(",") + 1);
 }
 

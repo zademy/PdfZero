@@ -1,20 +1,24 @@
 import React from "react";
-import { Copy, Download, TextCursorInput, X } from "lucide-react";
+import { Copy, Download, FileText, Type, X } from "lucide-react";
 import toast from "react-hot-toast";
+import Markdown from "react-markdown";
 import styles from "./OcrModal.module.css";
 
 /**
- * Post-OCR review modal: editable extracted text with copy / export /
- * insert-as-block actions. Pure presentational — the text lives in local
- * state seeded from the OCR result so the user can fix recognition errors
- * before copying or inserting.
+ * Post-OCR review modal. Two views:
+ * - Formatted: GLM-structured Markdown rendered read-only (the default when
+ *   formatting succeeded) so the page's layout is visible at a glance.
+ * - Raw: the plain OCR text, editable, used for copy-as-txt and for the
+ *   insert-as-block action (text blocks don't render Markdown).
  */
 export default function OcrModal({ result, onClose, onInsert }) {
-  const [text, setText] = React.useState(result?.text ?? "");
+  const [view, setView] = React.useState("formatted");
+  const [rawDraft, setRawDraft] = React.useState(result?.raw ?? "");
 
-  // Re-seed the draft whenever a new OCR result opens the modal.
+  // Re-seed when a new OCR result opens the modal.
   React.useEffect(() => {
-    setText(result?.text ?? "");
+    setRawDraft(result?.raw ?? "");
+    setView(result?.markdown ? "formatted" : "raw");
   }, [result]);
 
   // Escape closes (hooks must all run before the early return below).
@@ -29,34 +33,47 @@ export default function OcrModal({ result, onClose, onInsert }) {
 
   if (!result) return null;
 
-  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const hasMarkdown = !!result.markdown;
+  const activeView = view === "formatted" && hasMarkdown ? "formatted" : "raw";
+  const activeText = activeView === "formatted" ? result.markdown : rawDraft;
+  const words = activeText.trim() ? activeText.trim().split(/\s+/).length : 0;
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(text);
-      toast.success("Copied to clipboard", { duration: 1500 });
+      await navigator.clipboard.writeText(activeText);
+      toast.success(
+        activeView === "formatted" ? "Markdown copied" : "Text copied",
+        { duration: 1500 },
+      );
     } catch {
       toast.error("Clipboard unavailable");
     }
   };
 
-  const handleDownload = () => {
-    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+  const download = (content, filename) => {
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `page-${result.page}-ocr.txt`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Downloaded .txt", { duration: 1500 });
+  };
+
+  const handleDownloadMd = () => {
+    download(
+      hasMarkdown ? result.markdown : rawDraft,
+      `page-${result.page}-ocr.md`,
+    );
+    toast.success("Downloaded .md", { duration: 1500 });
   };
 
   const handleInsert = () => {
-    if (!text.trim()) {
+    if (!rawDraft.trim()) {
       toast.error("Nothing to insert");
       return;
     }
-    onInsert(text);
+    onInsert(rawDraft);
   };
 
   return (
@@ -71,6 +88,26 @@ export default function OcrModal({ result, onClose, onInsert }) {
           <div className={styles.title}>
             <span className={styles.page}>Page {result.page}</span>
             <span className={styles.engine}>{result.engine}</span>
+            {hasMarkdown && (
+              <div className={styles.viewToggle} role="tablist">
+                <button
+                  role="tab"
+                  aria-selected={activeView === "formatted"}
+                  className={`${styles.tab} ${activeView === "formatted" ? styles.tabActive : ""}`}
+                  onClick={() => setView("formatted")}
+                >
+                  <FileText size={11} /> Formatted
+                </button>
+                <button
+                  role="tab"
+                  aria-selected={activeView === "raw"}
+                  className={`${styles.tab} ${activeView === "raw" ? styles.tabActive : ""}`}
+                  onClick={() => setView("raw")}
+                >
+                  <Type size={11} /> Raw
+                </button>
+              </div>
+            )}
           </div>
           <button
             className={styles.closeBtn}
@@ -82,24 +119,30 @@ export default function OcrModal({ result, onClose, onInsert }) {
           </button>
         </div>
 
-        <textarea
-          className={styles.textarea}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          spellCheck={false}
-          aria-label="OCR extracted text"
-        />
+        {activeView === "formatted" ? (
+          <div className={styles.prose}>
+            <Markdown>{result.markdown}</Markdown>
+          </div>
+        ) : (
+          <textarea
+            className={styles.textarea}
+            value={rawDraft}
+            onChange={(e) => setRawDraft(e.target.value)}
+            spellCheck={false}
+            aria-label="OCR extracted text"
+          />
+        )}
 
         <div className={styles.footer}>
           <span className={styles.counter}>
-            {text.length} chars · {words} words
+            {activeText.length} chars · {words} words
           </span>
           <div className={styles.actions}>
-            <button className={styles.btn} onClick={handleDownload}>
-              <Download size={13} /> Download .txt
+            <button className={styles.btn} onClick={handleDownloadMd}>
+              <Download size={13} /> Download .md
             </button>
             <button className={styles.btn} onClick={handleInsert}>
-              <TextCursorInput size={13} /> Insert as text block
+              <Type size={13} /> Insert as text block
             </button>
             <button className={styles.btnPrimary} onClick={handleCopy}>
               <Copy size={13} /> Copy
