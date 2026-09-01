@@ -80,7 +80,7 @@ Tool pages (`src/pages/Tools.jsx`) all follow the same shape: `FileDropper` → 
 
 ## Build gotchas (do not "simplify" these)
 
-- `vite.config.js`: `optimizeDeps.exclude: ['pdfjs-dist']`, `worker.format: 'es'`, manual chunks for `pdf-lib`/`pdfjs`, and COOP/COEP headers on the dev server. Removing any of these breaks pdfjs workers or tesseract.js.
+- `vite.config.js`: `optimizeDeps.exclude: ['pdfjs-dist']`, `worker.format: 'es'`, `codeSplitting` groups for `pdf-lib`/`pdfjs` (Vite 8/rolldown replaced `manualChunks` — do not revert), and COOP/COEP headers on the dev server. Removing any of these breaks pdfjs workers or tesseract.js.
 - OCR worker lifecycle: `initOcr` lazily creates one tesseract worker; call `terminateOcr` when done (see `ocrEngine.js`) — leaking workers degrades the page.
 - Font fidelity: `index.html` loads Noto Sans/Serif, Lato, Merriweather as visual substitutes for embedded PDF fonts; `classifyFont` maps embedded fonts onto these families. A new substitute family must be added in both places.
 

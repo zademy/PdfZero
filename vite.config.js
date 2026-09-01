@@ -18,9 +18,13 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          "pdf-lib": ["pdf-lib"],
-          pdfjs: ["pdfjs-dist"],
+        // Vite 8 (rolldown) replaced manualChunks with codeSplitting
+        // groups. Same goal: keep the two PDF engines in their own chunks.
+        codeSplitting: {
+          groups: [
+            { name: "pdf-lib", test: /pdf-lib/ },
+            { name: "pdfjs", test: /pdfjs-dist/ },
+          ],
         },
       },
     },

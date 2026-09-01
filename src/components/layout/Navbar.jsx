@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
-import { FileText, Github, Star, Zap } from "lucide-react";
+import { FileText, Star, Zap } from "lucide-react";
+import GithubIcon from "../ui/GithubIcon.jsx";
 import styles from "./Navbar.module.css";
 
 export default function Navbar({ variant = "app" }) {
@@ -49,7 +50,7 @@ export default function Navbar({ variant = "app" }) {
           rel="noopener noreferrer"
           className={styles.githubBtn}
         >
-          <Github size={14} />
+          <GithubIcon size={14} />
           <span>GitHub</span>
           <span className={styles.starCount}>
             <Star size={11} />

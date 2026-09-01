@@ -12,7 +12,6 @@ import {
   ChevronRight,
   Check,
   X,
-  Github,
   Image,
   PenTool,
   RotateCcw,
@@ -22,6 +21,7 @@ import {
   FileSearch,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar.jsx";
+import GithubIcon from "../components/ui/GithubIcon.jsx";
 import styles from "./Landing.module.css";
 
 const FEATURES = [
@@ -167,7 +167,7 @@ export default function Landing() {
               rel="noopener noreferrer"
               className={styles.ghostBtn}
             >
-              <Github size={15} />
+              <GithubIcon size={15} />
               Star on GitHub
             </a>
           </div>

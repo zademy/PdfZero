@@ -19,28 +19,29 @@
     "@expo-google-fonts/noto-sans": "^0.4.2",
     "@expo-google-fonts/noto-serif": "^0.4.2",
     "@pdf-lib/fontkit": "^1.1.1",
-    "@pdfsmaller/pdf-encrypt": "^1.0.2",
+    "@pdfsmaller/pdf-encrypt": "^1.2.0",
     "@vercel/analytics": "^2.0.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^0.439.0",
+    "lucide-react": "^1.38.0",
     "pdf-lib": "^1.17.1",
-    "pdfjs-dist": "^4.5.136",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-dropzone": "^14.2.3",
+    "pdfjs-dist": "^6.3.289",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-dropzone": "^20.1.1",
     "react-hot-toast": "^2.4.1",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^6.26.1",
+    "react-router-dom": "^7.18.3",
     "tesseract.js": "^7.0.0",
-    "zustand": "^4.5.5"
+    "zustand": "^5.0.15"
   },
   "devDependencies": {
-    "@types/react": "^18.3.5",
-    "@types/react-dom": "^18.3.0",
-    "@vitejs/plugin-react": "^4.3.1",
-    "eslint": "^9.9.1",
+    "@eslint/js": "^10.0.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.1",
+    "eslint": "^10.9.1",
     "prettier": "^3.9.6",
-    "vite": "^5.4.2",
-    "vitest": "^2.1.9"
+    "vite": "^8.2.2",
+    "vitest": "^4.1.11"
   }
 }

@@ -324,7 +324,7 @@ export async function translatePage(entries) {
 
   const payload = list.map(({ id, text, budget }) => ({ id, text, budget }));
 
-  let map = null;
+  let map;
   let response;
   try {
     response = await fetch(GLM_API_URL, {
