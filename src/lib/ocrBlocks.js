@@ -11,6 +11,30 @@
 // tweaks read them from one place).
 const ECHO_PREFIX_MIN_CHARS = 10;
 
+// Heading-fragment thresholds. Merge stays conservative: only short,
+// punctuation-light fragments that clearly continue each other.
+const HEADING_TERMINAL_PUNCT = /[.!?:;,]$/;
+const SENTENCE_PUNCT = /[.!?]/;
+const STARTS_LOWER = /^[a-z\u00df-\u00ff]/;
+
+// The heading-fragment rule. Built as a separate object so wantsMerge can
+// read the live thresholds below — the dictionary entry IS the tweak
+// surface, not a mirror of module constants.
+const headingFragment = {
+  action: "merge",
+  maxFragments: 3,
+  maxFragmentChars: 60,
+  // prev is a non-final fragment: short, no terminal punctuation. next
+  // continues it (lowercase start) or both read as punctuation-free
+  // heading-like text.
+  wantsMerge: (prev, next) =>
+    prev.length <= headingFragment.maxFragmentChars &&
+    next.length <= headingFragment.maxFragmentChars &&
+    !HEADING_TERMINAL_PUNCT.test(prev) &&
+    (STARTS_LOWER.test(next) ||
+      (!SENTENCE_PUNCT.test(prev) && !SENTENCE_PUNCT.test(next))),
+};
+
 /** The label dictionary: each entry names a label, how to detect it, and
  *  what cleanup does with a block carrying it. Thresholds live here so the
  *  classification rules stay discoverable and tweakable in one place. */
@@ -35,6 +59,12 @@ export const BLOCK_LABELS = {
     collapseLineRuns: (lines) =>
       lines.filter((line, i) => i === 0 || line !== lines[i - 1]),
   },
+  // Heading fragment: one of up to three short consecutive blocks that
+  // together form a single heading (CONTEXT.md). Merged into one block,
+  // joined with a space, after echo removal. Relational by nature — the
+  // rule judges adjacent PAIRS, not single blocks, so it never surfaces
+  // as a per-block label in labelBlocks.
+  "heading-fragment": headingFragment,
   // Everything else: genuine page content. Kept as-is.
   content: {
     action: "keep",
@@ -109,15 +139,43 @@ export function labelBlocks(rawText) {
   return labeled;
 }
 
-/** Full cleanup: label blocks, drop the ones the dictionary says to drop,
- *  rejoin. Complements of the former sanitizeOcrText, now pipeline-owned.
+/** Full cleanup, in order (ADR 0001): label blocks → drop echo → merge
+ *  heading fragments → rejoin.
+ *
+ *  SINGLE-SHOT by design: the merge continuation signal (lowercase start,
+ *  punctuation-free) survives merging, so a second pass could merge past
+ *  the fragment cap (clean("a\n\nb") joins, cleaning again may join more).
+ *  The pipeline cleans exactly once; never chain cleanOcrText calls.
  * @param {string} rawText
  * @returns {string}
  */
 export function cleanOcrText(rawText) {
-  return labelBlocks(rawText)
+  const kept = labelBlocks(rawText)
     .filter((block) => isKept(block.label))
-    .map((block) => block.text)
-    .join("\n\n")
-    .trim();
+    .map((block) => block.text);
+
+  const { wantsMerge, maxFragments } = BLOCK_LABELS["heading-fragment"];
+  const merged = [];
+  let run = [];
+  const flushRun = () => {
+    if (run.length) {
+      merged.push(run.join(" "));
+      run = [];
+    }
+  };
+  for (const block of kept) {
+    if (
+      run.length &&
+      run.length < maxFragments &&
+      wantsMerge(run[run.length - 1], block)
+    ) {
+      run.push(block);
+    } else {
+      flushRun();
+      run = [block];
+    }
+  }
+  flushRun();
+
+  return merged.join("\n\n").trim();
 }

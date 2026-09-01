@@ -15,7 +15,7 @@ describe("sanitizeOcrText", () => {
   });
 
   it("keeps non-consecutive repeats (genuine recurring content)", () => {
-    const text = "Header\n\nBody A\n\nHeader\n\nBody B";
+    const text = "Header.\n\nBody A.\n\nHeader.\n\nBody B.";
     expect(sanitizeOcrText(text)).toBe(text);
   });
 
@@ -25,8 +25,8 @@ describe("sanitizeOcrText", () => {
   });
 
   it("normalizes CRLF and strips stray fence lines", () => {
-    expect(sanitizeOcrText("```\r\nline one\r\n```\r\n\r\nline two")).toBe(
-      "line one\n\nline two",
+    expect(sanitizeOcrText("```\r\nline one.\r\n```\r\n\r\nline two.")).toBe(
+      "line one.\n\nline two.",
     );
   });
 

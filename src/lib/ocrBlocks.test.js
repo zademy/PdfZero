@@ -23,6 +23,88 @@ describe("labelBlocks", () => {
   });
 });
 
+describe("heading fragment merge", () => {
+  it("merges a heading split across two blocks (both punctuation-free)", () => {
+    expect(cleanOcrText("What This Book Is\n\nAbout")).toBe(
+      "What This Book Is About",
+    );
+  });
+
+  it("merges when the next fragment starts lowercase", () => {
+    expect(cleanOcrText("Chapter Two\n\nthe sequel begins")).toBe(
+      "Chapter Two the sequel begins",
+    );
+  });
+
+  it("merges up to three fragments and no more", () => {
+    const four = "One\n\ntwo\n\nthree\n\nfour";
+    expect(cleanOcrText(four)).toBe("One two three\n\nfour");
+  });
+
+  it("does not merge when the previous fragment ends with punctuation", () => {
+    const text = "This ends a sentence.\n\nand continues elsewhere";
+    expect(cleanOcrText(text)).toBe(text);
+  });
+
+  it("does not merge fragments over the length cap", () => {
+    const long = "A".repeat(61);
+    const text = `${long}\n\nshort continuation`;
+    expect(cleanOcrText(text)).toBe(text);
+  });
+
+  it("does not merge an uppercase continuation with punctuation present", () => {
+    const text = "Chapter Two. The story\n\nContinues here.";
+    expect(cleanOcrText(text)).toBe(text);
+  });
+
+  it("merges only after echo removal (fragments interleaved with echo)", () => {
+    expect(cleanOcrText("A Split\n\nA Split\n\nHeading")).toBe(
+      "A Split Heading",
+    );
+  });
+
+  it("merges at exactly the 60-char fragment cap", () => {
+    const prev = "T".repeat(60);
+    expect(cleanOcrText(`${prev}\n\ntail`)).toBe(`${prev} tail`);
+  });
+
+  it("does not merge a next fragment over the length cap", () => {
+    const long = "N".repeat(61);
+    const text = `Short heading\n\n${long}`;
+    expect(cleanOcrText(text)).toBe(text);
+  });
+
+  it("does not merge when the previous fragment ends in a semicolon", () => {
+    const text = "Chapter One;\n\nthe beginning";
+    expect(cleanOcrText(text)).toBe(text);
+  });
+
+  it("merges an uppercase continuation when both fragments are punctuation-free (documented trade-off)", () => {
+    expect(cleanOcrText("What This Book Is\n\nAbout")).toBe(
+      "What This Book Is About",
+    );
+  });
+
+  it("single-shot semantics: a second pass can merge past the fragment cap", () => {
+    // Documented limitation (issue #4): the continuation signal survives
+    // merging, so cleanOcrText must be called exactly once — as the
+    // pipeline does.
+    const once = cleanOcrText("One\n\ntwo\n\nthree\n\nfour");
+    expect(once).toBe("One two three\n\nfour");
+    expect(cleanOcrText(once)).toBe("One two three four");
+  });
+
+  it("exposes the merge action and constants in the dictionary", () => {
+    expect(BLOCK_LABELS["heading-fragment"].action).toBe("merge");
+    expect(BLOCK_LABELS["heading-fragment"].maxFragments).toBe(3);
+    expect(BLOCK_LABELS["heading-fragment"].maxFragmentChars).toBe(60);
+    // Thresholds on the entry are live: the rule reads them from there.
+    expect(
+      BLOCK_LABELS["heading-fragment"].wantsMerge("T".repeat(61), "x"),
+    ).toBe(false);
+  });
+});
+
 describe("cleanOcrText", () => {
   it("collapses the observed glm-ocr repetition loop (fenced block ×10)", () => {
     const block = "Hola mundo, esta es una prueba de traducción. [editado]";
@@ -66,7 +148,7 @@ describe("cleanOcrText", () => {
     expect(cleanOcrText(block)).toBe(block);
   });
 
-  it("is idempotent: cleaning twice equals cleaning once", () => {
+  it("echo cleanup is idempotent: cleaning twice equals cleaning once", () => {
     const block = "The quick brown fox jumps over the lazy dog again.";
     const dirty = `${block}\n\n${block}\n\n${block.slice(0, 25)}`;
     const once = cleanOcrText(dirty);
@@ -74,7 +156,7 @@ describe("cleanOcrText", () => {
   });
 
   it("keeps non-consecutive repeats (genuine recurring content)", () => {
-    const text = "Header\n\nBody A\n\nHeader\n\nBody B";
+    const text = "Header.\n\nBody A.\n\nHeader.\n\nBody B.";
     expect(cleanOcrText(text)).toBe(text);
   });
 
@@ -84,8 +166,8 @@ describe("cleanOcrText", () => {
   });
 
   it("normalizes CRLF and strips stray fence lines", () => {
-    expect(cleanOcrText("```\r\nline one\r\n```\r\n\r\nline two")).toBe(
-      "line one\n\nline two",
+    expect(cleanOcrText("```\r\nline one.\r\n```\r\n\r\nline two.")).toBe(
+      "line one.\n\nline two.",
     );
   });
 
