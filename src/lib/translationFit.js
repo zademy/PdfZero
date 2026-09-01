@@ -138,6 +138,12 @@ export function buildPageEntries({ extractedItems, layerTexts, pageBg }) {
 // Char budgets are only guidance; a measured overrun visibly escapes the box
 // and the page's right margin. Returns a NEW translations map — shorter
 // condensations replace their originals, everything else passes through.
+//
+// Condensation is ITERATIVE and measurement-driven: a candidate that is
+// shorter but still MEASURES over its box is re-condensed in the next round
+// from its own re-back-solved budget, up to maxRounds. Length-based
+// acceptance alone lets a "shorter" string still render wider than its box
+// (wider glyphs) — only the re-measure loop catches that.
 // ─── Box truth ─────────────────────────────────────────────────────────────
 // The ORIGINAL string's measured width is the line's true footprint (canvas
 // and DOM agree within ~1.2%). A block's originalWidth/width can be inflated
@@ -156,37 +162,42 @@ export function boxOf(entry, measureWidth) {
 export async function fitTranslations(
   ordered,
   translations,
-  { measureWidth, condense = defaultCondense },
+  { measureWidth, condense = defaultCondense, maxRounds = 3 },
 ) {
-  const overWidth = ordered.filter((e) => {
-    const translated = translations[e.id];
-    if (!translated) return false;
-    const boxWidth = boxOf(e, measureWidth);
-    if (!boxWidth) return false;
-    return measureWidth(translated, e.block) > boxWidth * 1.005;
-  });
-  if (!overWidth.length) return translations;
-
-  const condensed = await condense(
-    overWidth.map((e) => {
-      const translated = translations[e.id];
-      const boxWidth = boxOf(e, measureWidth);
-      const measured = measureWidth(translated, e.block);
-      return {
-        id: e.id,
-        text: translated,
-        budget: backSolvedBudget(translated.length, boxWidth, measured),
-      };
-    }),
-  );
-  if (!condensed.ok) return translations;
-
   const out = { ...translations };
-  for (const e of overWidth) {
-    const shorter = condensed.translations[e.id];
-    if (shorter && shorter.length < out[e.id].length) {
-      out[e.id] = shorter;
+  for (let round = 0; round < maxRounds; round++) {
+    const overWidth = ordered.filter((e) => {
+      const translated = out[e.id];
+      if (!translated) return false;
+      const boxWidth = boxOf(e, measureWidth);
+      if (!boxWidth) return false;
+      return measureWidth(translated, e.block) > boxWidth * 1.005;
+    });
+    if (!overWidth.length) break;
+
+    const condensed = await condense(
+      overWidth.map((e) => {
+        const translated = out[e.id];
+        const boxWidth = boxOf(e, measureWidth);
+        const measured = measureWidth(translated, e.block);
+        return {
+          id: e.id,
+          text: translated,
+          budget: backSolvedBudget(translated.length, boxWidth, measured),
+        };
+      }),
+    );
+    if (!condensed.ok) break;
+
+    let improved = false;
+    for (const e of overWidth) {
+      const shorter = condensed.translations[e.id];
+      if (shorter && shorter.length < out[e.id].length) {
+        out[e.id] = shorter;
+        improved = true;
+      }
     }
+    if (!improved) break;
   }
   return out;
 }

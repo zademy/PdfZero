@@ -37,6 +37,7 @@ const EXPLICIT_PROMPT = [
   "You are a precise translator.",
   "Translate the user text below into the OTHER language: English into Spanish, or Spanish into English.",
   "The output MUST be in the other language — never repeat the input unchanged.",
+  "Translate every functional word and role label (e.g. 'Index' → 'Índice', 'Acquisitions' → 'Adquisiciones'); keep personal and company names unchanged.",
   "Return ONLY the translation — no commentary, no quotes, no explanations.",
   "Preserve the line breaks and whitespace structure of the input exactly.",
 ].join(" ");
@@ -48,6 +49,7 @@ const PAGE_SYSTEM_PROMPT = [
   "SPANISH TARGET VARIETY: natural Latin American Spanish (es-419).",
   "Use 'ustedes' (never 'vosotros'), 'computadora' (not 'ordenador'), 'carro/auto' (not 'coche'), and Latin American professional vocabulary throughout.",
   "Keep terminology and proper nouns consistent across all segments.",
+  "Translate functional words and role labels (e.g. 'Index' → 'Índice', 'Acquisitions' → 'Adquisiciones'); keep personal and company names unchanged.",
   "Each segment has a 'budget' (max characters). Your translation for that id MUST NOT exceed its budget — compress politely (drop filler, never meaning) if needed.",
   "CRITICAL: each output must contain ONLY its own segment's content. Never merge, split, or move content across segments — even when two segments form one visual line, heading, or sentence. Segment i's translation maps to segment i's box on the page.",
   "Preserve each segment's line breaks.",
@@ -62,6 +64,7 @@ const CONDENSE_SYSTEM_PROMPT = [
   "The user message is a JSON array of objects: {id, text, budget}.",
   "For every id, return a version of `text` whose length is AT MOST its budget characters.",
   "Preserve the meaning and the language; drop filler words, abbreviate politely, never cut mid-word.",
+  "Compress with natural words only: never truncate a word with a period (write 'herramientas', not 'herram.'), never use numeric ordinals like '1a' or '2do' (write 'primera', 'segundo').",
   "If the text already fits, return it unchanged.",
   "Respond with ONLY a JSON object mapping every id to the compressed text.",
   "No markdown fences, no commentary.",

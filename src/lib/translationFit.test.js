@@ -175,6 +175,52 @@ describe("fitTranslations — condense everything that measures over its box", (
     await fitTranslations(ordered2, {}, { measureWidth, condense });
     expect(condense).not.toHaveBeenCalled();
   });
+
+  it("re-condenses entries that still measure over their box, with a re-back-solved budget", async () => {
+    // Round 1 candidate is shorter but still over-width → a second round
+    // must run from the NEW text and accept the fitting result.
+    const translations = { a: "x".repeat(20) }; // 200px > 100.5px box
+    const replies = [
+      { ok: true, translations: { a: "elevenchars" } }, // 110px: still over
+      { ok: true, translations: { a: "five!" } }, // 50px: fits
+    ];
+    const condense = vi.fn(async () => replies.shift());
+    const out = await fitTranslations(ordered, translations, {
+      measureWidth,
+      condense,
+    });
+    expect(condense).toHaveBeenCalledTimes(2);
+    // round 2 budget back-solved from the round-1 text: ⌊11*100*0.97/110⌋ = 9
+    expect(condense.mock.calls[1][0]).toEqual([
+      { id: "a", text: "elevenchars", budget: 9 },
+    ]);
+    expect(out.a).toBe("five!");
+  });
+
+  it("keeps the shorter candidate when a later condense round fails", async () => {
+    const translations = { a: "x".repeat(20) };
+    const replies = [
+      { ok: true, translations: { a: "elevenchars" } }, // still over, but shorter
+      { ok: false },
+    ];
+    const condense = vi.fn(async () => replies.shift());
+    const out = await fitTranslations(ordered, translations, {
+      measureWidth,
+      condense,
+    });
+    expect(condense).toHaveBeenCalledTimes(2);
+    expect(out.a).toBe("elevenchars");
+  });
+
+  it("stops early when a round improves nothing", async () => {
+    const translations = { a: "x".repeat(20) };
+    const condense = vi.fn(async (items) => ({
+      ok: true,
+      translations: Object.fromEntries(items.map((i) => [i.id, i.text])), // echoes input
+    }));
+    await fitTranslations(ordered, translations, { measureWidth, condense });
+    expect(condense).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("expansionItems — which lines are short, and their budgets", () => {
