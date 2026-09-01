@@ -209,6 +209,27 @@ function drawFittedText(page, text, options, block) {
       line.characterSpacing,
       block,
     );
+    // PDF text has no decoration operator in our drawing path — stroke the
+    // underline by hand just below the baseline (parity with TextBlock's CSS
+    // underline; without this the mark silently vanished on vector export).
+    if (block.fontUnderline) {
+      const angle = ((Number(block.rotation) || 0) * Math.PI) / 180;
+      const width =
+        options.font.widthOfTextAtSize(line.text, line.size) +
+        (line.characterSpacing || 0) * Math.max(line.text.length - 1, 0);
+      const thickness = Math.max(line.size * 0.06, 0.5);
+      const dy = -line.size * 0.12;
+      const { x } = lineOptions;
+      page.drawLine({
+        start: { x, y: y + dy },
+        end: {
+          x: x + width * Math.cos(angle),
+          y: y + dy + width * Math.sin(angle),
+        },
+        thickness,
+        color: options.color,
+      });
+    }
   });
 
   return {
@@ -555,8 +576,26 @@ function drawVisualText(ctx, block, scale) {
   ctx.translate(x, y);
   if (angle) ctx.rotate(angle);
 
+  // Canvas 2D has no text-decoration: draw the underline ourselves, slightly
+  // below the alphabetic baseline (visual parity with TextBlock's CSS
+  // underline, which is silently lost otherwise).
+  const underlineThickness = Math.max(fontSize * 0.06, 0.5);
+  const underlineOffset = fontSize * 0.12;
+  const drawUnderline = (line, index) => {
+    const w = ctx.measureText(line).width;
+    ctx.fillRect(
+      0,
+      index * lineHeight + underlineOffset,
+      w,
+      underlineThickness,
+    );
+  };
+
   splitTextLines(text).forEach((line, index) => {
-    if (line) ctx.fillText(line, 0, index * lineHeight);
+    if (line) {
+      ctx.fillText(line, 0, index * lineHeight);
+      if (block.fontUnderline) drawUnderline(line, index);
+    }
   });
 
   ctx.restore();
@@ -706,7 +745,7 @@ async function exportVisualPdf(
 }
 
 // ─── Main export ──────────────────────────────────────────────────────────
-async function exportVectorPdf(
+export async function exportVectorPdf(
   originalArrayBuffer,
   editLayers,
   pageCount,
@@ -719,85 +758,6 @@ async function exportVectorPdf(
   pdfDoc.registerFontkit(fontkit);
   const pages = pdfDoc.getPages();
   const fontCache = {};
-
-  async function getFont(block, pageNum, previewText = "") {
-    const embedded = getEmbeddedFontData(
-      pageNum,
-      block.fontResource,
-      block.fontName,
-    );
-    if (embedded?.bytes?.byteLength) {
-      const embeddedKey = [
-        "embedded",
-        pageNum,
-        block.fontResource?.internalName || "",
-        embedded.name || block.fontName || "font",
-        embedded.bytes.byteLength,
-      ].join(":");
-      try {
-        if (!fontCache[embeddedKey]) {
-          fontCache[embeddedKey] = await pdfDoc.embedFont(embedded.bytes, {
-            subset: true,
-          });
-        }
-
-        // Verify this edited string can actually be encoded by the font. Many
-        // PDFs carry subset fonts that only contain the original glyphs.
-        if (previewText) {
-          if (!fontSupportsText(fontCache[embeddedKey], previewText)) {
-            throw new Error(
-              "Embedded font subset cannot render replacement text",
-            );
-          }
-          fontCache[embeddedKey].widthOfTextAtSize(
-            previewText,
-            Math.max((block.fontSize || 12) / BASE_SCALE, 1),
-          );
-          fontCache[embeddedKey].encodeText(previewText);
-        }
-        return fontCache[embeddedKey];
-      } catch (_) {
-        delete fontCache[embeddedKey];
-      }
-    }
-
-    // ── Substitute-family tier (fontRegistry.js) ───────────────────────────
-    // When the block's family resolves to one of our in-repo TTF families
-    // (picker choice, or classifyFont matched it in the original PDF), embed
-    // that file — multilingual coverage the base-14 set can't provide. Falls
-    // through to a standard font if the asset can't be fetched/encoded.
-    const familyInfo = classifyFont(block.fontName || block.stdFont || "");
-    if (isCustomFamily(familyInfo.family)) {
-      const bold = block.fontBold ?? familyInfo.bold;
-      const customKey = `custom:${familyInfo.family}:${bold ? "bold" : "regular"}`;
-      try {
-        if (!fontCache[customKey]) {
-          const bytes = await getCustomFontBytes(familyInfo.family, { bold });
-          if (!bytes) throw new Error("no font asset");
-          fontCache[customKey] = await pdfDoc.embedFont(bytes, {
-            subset: true,
-          });
-        }
-        if (previewText) {
-          if (!fontSupportsText(fontCache[customKey], previewText)) {
-            throw new Error("Custom font cannot render replacement text");
-          }
-          fontCache[customKey].widthOfTextAtSize(
-            previewText,
-            Math.max((block.fontSize || 12) / BASE_SCALE, 1),
-          );
-          fontCache[customKey].encodeText(previewText);
-        }
-        return fontCache[customKey];
-      } catch (_) {
-        delete fontCache[customKey];
-      }
-    }
-
-    const key = pickStdFont(block);
-    if (!fontCache[key]) fontCache[key] = await pdfDoc.embedFont(key);
-    return fontCache[key];
-  }
 
   for (let i = 0; i < pageCount; i++) {
     const layer = editLayers[i + 1];
@@ -829,7 +789,7 @@ async function exportVectorPdf(
       const safe = sanitize(block.str);
       if (!safe) continue;
 
-      const font = await getFont(block, i + 1, safe);
+      const font = await resolveFont(pdfDoc, fontCache, block, i + 1, safe);
       const color = hexToRgb(block.color || "#000000");
       const { x, y, size } = canvasToPdf(
         block.x,
@@ -902,13 +862,125 @@ async function exportVectorPdf(
   return await pdfDoc.save();
 }
 
+// 3-tier font resolution for the vector path, hoisted to module scope so it
+// is testable and shareable: (1) the page's embedded font when it can encode
+// the replacement text, (2) a registry custom family TTF (multilingual
+// coverage the base-14 set lacks), (3) a base-14 standard font. Each tier is
+// validated with the preview text before being returned; failures fall
+// through to the next tier.
+export async function resolveFont(
+  pdfDoc,
+  fontCache,
+  block,
+  pageNum,
+  previewText = "",
+) {
+  const embedded = getEmbeddedFontData(
+    pageNum,
+    block.fontResource,
+    block.fontName,
+  );
+  if (embedded?.bytes?.byteLength) {
+    const embeddedKey = [
+      "embedded",
+      pageNum,
+      block.fontResource?.internalName || "",
+      embedded.name || block.fontName || "font",
+      embedded.bytes.byteLength,
+    ].join(":");
+    try {
+      if (!fontCache[embeddedKey]) {
+        fontCache[embeddedKey] = await pdfDoc.embedFont(embedded.bytes, {
+          subset: true,
+        });
+      }
+
+      // Verify this edited string can actually be encoded by the font. Many
+      // PDFs carry subset fonts that only contain the original glyphs.
+      if (previewText) {
+        if (!fontSupportsText(fontCache[embeddedKey], previewText)) {
+          throw new Error(
+            "Embedded font subset cannot render replacement text",
+          );
+        }
+        fontCache[embeddedKey].widthOfTextAtSize(
+          previewText,
+          Math.max((block.fontSize || 12) / BASE_SCALE, 1),
+        );
+        fontCache[embeddedKey].encodeText(previewText);
+      }
+      return fontCache[embeddedKey];
+    } catch (_) {
+      delete fontCache[embeddedKey];
+    }
+  }
+
+  // ── Substitute-family tier (fontRegistry.js) ───────────────────────────
+  // When the block's family resolves to one of our in-repo TTF families
+  // (picker choice, or classifyFont matched it in the original PDF), embed
+  // that file — multilingual coverage the base-14 set can't provide. Falls
+  // through to a standard font if the asset can't be fetched/encoded.
+  const familyInfo = classifyFont(block.fontName || block.stdFont || "");
+  if (isCustomFamily(familyInfo.family)) {
+    const bold = block.fontBold ?? familyInfo.bold;
+    const customKey = `custom:${familyInfo.family}:${bold ? "bold" : "regular"}`;
+    try {
+      if (!fontCache[customKey]) {
+        const bytes = await getCustomFontBytes(familyInfo.family, { bold });
+        if (!bytes) throw new Error("no font asset");
+        fontCache[customKey] = await pdfDoc.embedFont(bytes, {
+          subset: true,
+        });
+      }
+      if (previewText) {
+        if (!fontSupportsText(fontCache[customKey], previewText)) {
+          throw new Error("Custom font cannot render replacement text");
+        }
+        fontCache[customKey].widthOfTextAtSize(
+          previewText,
+          Math.max((block.fontSize || 12) / BASE_SCALE, 1),
+        );
+        fontCache[customKey].encodeText(previewText);
+      }
+      return fontCache[customKey];
+    } catch (_) {
+      delete fontCache[customKey];
+    }
+  }
+
+  const key = pickStdFont(block);
+  if (!fontCache[key]) fontCache[key] = await pdfDoc.embedFont(key);
+  return fontCache[key];
+}
+
+// Export strategy is explicit: "auto" (default) tries the visual/raster path
+// first for appearance fidelity and falls back to the vector path on error;
+// "visual" / "vector" run exactly one path and let errors propagate.
 export async function exportPdf(
   originalArrayBuffer,
   editLayers,
   pageCount,
   pageBgs,
   blockBgs,
+  { mode = "auto" } = {},
 ) {
+  if (mode === "visual") {
+    return await exportVisualPdf(
+      originalArrayBuffer,
+      editLayers,
+      pageCount,
+      pageBgs,
+    );
+  }
+  if (mode === "vector") {
+    return await exportVectorPdf(
+      originalArrayBuffer,
+      editLayers,
+      pageCount,
+      pageBgs,
+      blockBgs,
+    );
+  }
   try {
     return await exportVisualPdf(
       originalArrayBuffer,

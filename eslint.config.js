@@ -10,6 +10,8 @@ const browserGlobals = {
   fetch: "readonly",
   AbortController: "readonly",
   AbortSignal: "readonly",
+  TextEncoder: "readonly",
+  TextDecoder: "readonly",
   URL: "readonly",
   setTimeout: "readonly",
   clearTimeout: "readonly",

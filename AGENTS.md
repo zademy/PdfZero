@@ -63,10 +63,18 @@ Original file bytes are never mutated. Edits live in the store as overlays; expo
 
 ## Export paths
 
-Two exporters in `pdfExporter.js`, chosen by fidelity needs:
+Two exporters in `pdfExporter.js`, chosen by an explicit strategy on
+`exportPdf(..., { mode })`:
 
-- **Vector** (`exportVectorPdf`): keeps real text by whiteouting original runs with sampled colors and re-drawing editable text with pdf-lib + fontkit. Default for text edits.
-- **Visual/raster** (`exportVisualPdf`): snapshots rendered canvases; fallback when fidelity to appearance matters more than selectable text. Compression (`compressPdfToTarget`) iterates raster quality until the size target is met.
+- **Visual/raster** (`exportVisualPdf`): snapshots rendered canvases; preferred
+  when fidelity to appearance matters most. This is the **"auto" default**:
+  visual-first, falling back to vector on error. Compression
+  (`compressPdfToTarget`) iterates raster quality until the size target is met.
+- **Vector** (`exportVectorPdf`): keeps real text by whiteouting original runs
+  with sampled colors and re-drawing editable text with pdf-lib + fontkit.
+  Request with `mode: "vector"` when selectable text matters more than raster
+  fidelity. Font resolution is the hoisted 3-tier `resolveFont` (embedded →
+  custom TTF → std-14).
 
 Tool pages (`src/pages/Tools.jsx`) all follow the same shape: `FileDropper` → tool-specific `handleX` calling `lib` → `downloadBytes`. Reuse `DropZone`/`FileDropper` and `react-hot-toast` for feedback instead of new UI per tool.
 
