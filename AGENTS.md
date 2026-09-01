@@ -91,6 +91,27 @@ Tool pages (`src/pages/Tools.jsx`) all follow the same shape: `FileDropper` → 
 - Imports are relative (`../lib/...`), even though the `@` alias exists — follow the existing style.
 - Components PascalCase `.jsx`; lib files camelCase `.js`; state flows from `usePdfStore` via direct hook subscription.
 
+## Mandatory validation workflow
+
+These rules apply before declaring any code, test, style, configuration, or documentation change complete.
+
+### Playwright MCP gate
+
+- Use the Playwright MCP for every completed change. Do not replace it with a manual browser check or silently skip it.
+- Before navigating, prove that the MCP is available with a harmless Playwright operation. Navigation is allowed only after that operation succeeds.
+- If the MCP cannot be started or stops responding, keep the validation process active and retry with backoff. Do not declare the change complete, weaken the requirement, or start duplicate browser servers. Continue when the user restarts the MCP or the process blocking it ends.
+- Once available, navigate the relevant PdfZero route, exercise the changed behavior when possible, and capture the smallest useful evidence: accessibility snapshot, console result, and screenshot when visual output is involved.
+- Report the validation result and any blocker. A blocked Playwright check is an incomplete change, not a passing check.
+
+### Canonical PDF translation fixture
+
+- Always use the resource labeled `[PDF 1]`, whose filename is `pdfcomplete-translate-test.pdf`. Never substitute another PDF or a generated derivative as the source fixture.
+- Verify that the source has exactly 31 pages before translating. Translate only pages 2 through 31, inclusive; page 1 must remain outside the translation scope.
+- GLM/Z.AI image MCPs do not accept PDF input directly. Do not send the PDF file to an image model. Render pages 2–31 to readable page images first, then send those images to the GLM/Z.AI MCP, one page at a time or as a controlled batch.
+- Translate into clear Latin American Spanish. Preserve reading order, headings, tables, lists, footnotes, citations, numbers, units, symbols, and page boundaries. Do not invent, omit, summarize, or reflow source content.
+- Keep a page-to-page mapping for all 30 translated pages and retain per-page evidence. If the fixture is unavailable, unreadable, has the wrong page count, or a GLM/Z.AI page call fails, stop claiming success and continue the recovery/retry process instead of silently skipping that page.
+- After translation, use Playwright to validate the rendered result for pages 2–31 and use GLM/Z.AI for a final language/content pass. The run passes only when every requested page has evidence and no unresolved page-level finding remains.
+
 ## Agent skills
 
 ### Issue tracker
