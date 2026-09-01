@@ -26,3 +26,6 @@ vite-dev.log
 
 # OS
   +11 more in .gitignore [see remaining: tail -n +26 "$HOME/Library/Application Support/rtk/tee/1788204507_grep_0__gitignore.log"]
+
+# Playwright MCP artifacts
+.playwright-mcp/
