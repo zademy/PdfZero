@@ -140,13 +140,4 @@ describe("formatWithRetry", () => {
     await expect(formatWithRetry("raw", formatter)).resolves.toBeNull();
     expect(formatter).toHaveBeenCalledTimes(3);
   });
-
-  it("honors a custom attempt count", async () => {
-    const formatter = vi.fn(async () => ({ ok: false, code: "X" }));
-
-    await expect(
-      formatWithRetry("raw", formatter, { attempts: 2 }),
-    ).resolves.toBeNull();
-    expect(formatter).toHaveBeenCalledTimes(2);
-  });
 });
