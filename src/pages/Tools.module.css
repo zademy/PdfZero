@@ -247,6 +247,12 @@
   max-width: 1080px;
 }
 
+/* Editor workspaces (OCR Scanner): the editor + panel zone spans the whole
+   content column once a document exists. Must stay after .toolUIWide. */
+.toolUIFull {
+  max-width: none;
+}
+
 /* Editor workspaces (OCR Scanner): use the whole content column. */
 .toolUIFull {
   max-width: none;

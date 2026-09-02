@@ -52,9 +52,11 @@ const OcrScannerWorkspace = React.lazy(
 
 /* ─────────────────── shared helpers ─────────────────── */
 
-function ToolShell({ title, desc, children, wide = false }) {
+function ToolShell({ title, desc, children, wide = false, full = false }) {
   return (
-    <div className={`${styles.toolUI} ${wide ? styles.toolUIWide : ""}`}>
+    <div
+      className={`${styles.toolUI} ${wide ? styles.toolUIWide : ""} ${full ? styles.toolUIFull : ""}`}
+    >
       <h2 className={styles.toolUITitle}>{title}</h2>
       <p className={styles.toolUIDesc}>{desc}</p>
       {children}
@@ -1407,15 +1409,16 @@ function ReorderTool() {
 }
 
 function OcrTool() {
-  // Compact centered box until a document exists; then the shell widens so
-  // the editor + panel zone has room. The run controls stay a centered
-  // 560px column either way (matches every other tool).
+  // Compact centered box until a document exists; then the shell goes full
+  // width so the editor + panel zone has room. The run controls stay a
+  // centered 560px column either way (matches every other tool).
   const [hasDoc, setHasDoc] = useState(false);
   return (
     <ToolShell
       title="OCR Scanner"
       desc="Extract text from scanned PDFs into a rich markdown editor — recognition runs 100% on your machine with Ollama glm-ocr, formatting via GLM."
       wide={hasDoc}
+      full={hasDoc}
     >
       <React.Suspense
         fallback={
