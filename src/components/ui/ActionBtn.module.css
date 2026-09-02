@@ -1,0 +1,38 @@
+/* Single source of the Tools action-button styles.
+   Tools.module.css composes these. */
+
+.actionBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 20px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--r-md);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--t-fast);
+  font-family: var(--font-sans);
+}
+
+.actionBtn:hover:not(:disabled) {
+  background: var(--accent-dim);
+}
+
+.actionBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.spin {
+  animation: actionBtnSpin 0.8s linear infinite;
+}
+
+@keyframes actionBtnSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

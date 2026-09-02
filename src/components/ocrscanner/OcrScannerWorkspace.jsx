@@ -13,17 +13,17 @@
 // to configure the model — the PDF editor's page-level OCR flow is not
 // affected (ADR 0002 governs the engine, not this formatting gate).
 
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import {
   ScanLine,
   FileText,
-  Loader2,
   FileCode2,
   FileDown,
   TriangleAlert,
 } from "lucide-react";
 import FileDropper from "../ui/FileDropper.jsx";
+import ActionBtn from "../ui/ActionBtn.jsx";
 import { loadPdf } from "../../lib/pdfRenderer.js";
 import { ocrPage, OcrUnavailableError } from "../../lib/ocrPipeline.js";
 import { formatOcrMarkdown } from "../../lib/ocrFormat.js";
@@ -34,7 +34,7 @@ import { markdownToPlainText } from "../../lib/markdownText.js";
 import MarkdownEditor from "./MarkdownEditor.jsx";
 import styles from "./OcrScannerWorkspace.module.css";
 
-export default function OcrScannerWorkspace() {
+export default function OcrScannerWorkspace({ onDocumentChange }) {
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState({ page: 0, total: 0 });
@@ -43,6 +43,10 @@ export default function OcrScannerWorkspace() {
   const mdRef = useRef("");
   // Build-time gate: the key ships with the bundle, so read it once.
   const hasGlmKey = Boolean(getGlmApiKey());
+
+  useEffect(() => {
+    onDocumentChange?.(Boolean(doc));
+  }, [doc, onDocumentChange]);
 
   const handleRun = async () => {
     if (!file || busy) return;
@@ -138,22 +142,16 @@ export default function OcrScannerWorkspace() {
           </div>
         )}
 
-        <button
-          className={styles.runBtn}
+        <ActionBtn
           onClick={handleRun}
-          disabled={!file || !hasGlmKey || busy}
+          disabled={!file || !hasGlmKey}
+          loading={busy}
+          icon={ScanLine}
         >
-          {busy ? (
-            <Loader2 size={15} className={styles.spin} />
-          ) : (
-            <ScanLine size={15} />
-          )}
           {busy
-            ? progress.total
-              ? `Scanning… page ${progress.page}/${progress.total}`
-              : "Scanning…"
+            ? `Scanning... ${progress.total ? Math.round((progress.page / progress.total) * 100) : 0}%`
             : "Run OCR"}
-        </button>
+        </ActionBtn>
 
         {!hasGlmKey && (
           <div className={styles.keyAlert} role="alert">

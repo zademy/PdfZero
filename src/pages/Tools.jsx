@@ -28,6 +28,7 @@ import {
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar.jsx";
 import FileDropper from "../components/ui/FileDropper.jsx";
+import ActionBtn from "../components/ui/ActionBtn.jsx";
 import {
   mergePdfs,
   splitPdf,
@@ -51,32 +52,13 @@ const OcrScannerWorkspace = React.lazy(
 
 /* ─────────────────── shared helpers ─────────────────── */
 
-function ToolShell({ title, desc, children, wide = false, full = false }) {
+function ToolShell({ title, desc, children, wide = false }) {
   return (
-    <div
-      className={`${styles.toolUI} ${wide ? styles.toolUIWide : ""} ${full ? styles.toolUIFull : ""}`}
-    >
+    <div className={`${styles.toolUI} ${wide ? styles.toolUIWide : ""}`}>
       <h2 className={styles.toolUITitle}>{title}</h2>
       <p className={styles.toolUIDesc}>{desc}</p>
       {children}
     </div>
-  );
-}
-
-function ActionBtn({ onClick, disabled, loading, icon: Icon, children }) {
-  return (
-    <button
-      className={styles.actionBtn}
-      onClick={onClick}
-      disabled={disabled || loading}
-    >
-      {loading ? (
-        <Loader2 size={15} className={styles.spin} />
-      ) : Icon ? (
-        <Icon size={15} />
-      ) : null}
-      {children}
-    </button>
   );
 }
 
@@ -1425,18 +1407,22 @@ function ReorderTool() {
 }
 
 function OcrTool() {
+  // Compact centered box until a document exists; then the shell widens so
+  // the editor + panel zone has room. The run controls stay a centered
+  // 560px column either way (matches every other tool).
+  const [hasDoc, setHasDoc] = useState(false);
   return (
     <ToolShell
       title="OCR Scanner"
       desc="Extract text from scanned PDFs into a rich markdown editor — recognition runs 100% on your machine with Ollama glm-ocr, formatting via GLM."
-      full
+      wide={hasDoc}
     >
       <React.Suspense
         fallback={
           <div className={styles.dropArea}>Loading the OCR workspace...</div>
         }
       >
-        <OcrScannerWorkspace />
+        <OcrScannerWorkspace onDocumentChange={setHasDoc} />
       </React.Suspense>
     </ToolShell>
   );
