@@ -247,6 +247,11 @@
   max-width: 1080px;
 }
 
+/* Editor workspaces (OCR Scanner): use the whole content column. */
+.toolUIFull {
+  max-width: none;
+}
+
 .toolUITitle {
   font-size: 24px;
   font-weight: 600;
@@ -259,25 +264,19 @@
   color: var(--tx-3);
 }
 
+/* Drop-area / file-chip styles are owned by the shared FileDropper
+   component (src/components/ui) — compose them so every direct use here
+   stays in sync with one source. */
 .dropArea {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  border: 1.5px dashed var(--brd-2);
-  border-radius: var(--r-lg);
-  padding: 36px;
-  cursor: pointer;
-  color: var(--tx-3);
-  font-size: 13px;
-  transition: all var(--t-mid);
-  background: var(--bg-panel);
+  composes: dropArea from "../components/ui/FileDropper.module.css";
 }
 
-.dropArea:hover {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-bg);
+.dropActive {
+  composes: dropActive from "../components/ui/FileDropper.module.css";
+}
+
+.fileChip {
+  composes: fileChip from "../components/ui/FileDropper.module.css";
 }
 
 .fileList {

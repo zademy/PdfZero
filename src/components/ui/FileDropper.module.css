@@ -1,0 +1,77 @@
+/* Single source of the Tools drop-area / file-chip styles.
+   Tools.module.css composes these; the OCR Scanner workspace uses the
+   FileDropper component directly. */
+
+.dropArea {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  border: 1.5px dashed var(--brd-2);
+  border-radius: var(--r-lg);
+  padding: 36px;
+  cursor: pointer;
+  color: var(--tx-3);
+  font-size: 13px;
+  transition: all var(--t-mid);
+  background: var(--bg-panel);
+}
+
+.dropArea:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.dropActive {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.fileChip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--brd);
+  border-radius: var(--r-md);
+  background: var(--bg-panel);
+  color: var(--tx-2);
+}
+
+.fileName {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--tx-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileSize {
+  font-size: 11px;
+  color: var(--tx-4);
+  font-family: var(--font-mono);
+}
+
+.removeBtn {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: var(--r-sm);
+  border: none;
+  background: transparent;
+  color: var(--tx-4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--t-fast);
+}
+
+.removeBtn:hover {
+  background: var(--accent-bg);
+  color: var(--accent);
+}

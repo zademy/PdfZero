@@ -29,3 +29,5 @@ vite-dev.log
 
 # Playwright MCP artifacts
 .playwright-mcp/
+
+.DS_Store

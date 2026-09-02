@@ -1,0 +1,233 @@
+.workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.runZone {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progressBar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ink-800);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 0.25s ease;
+}
+
+.progressLabel {
+  font-size: 12px;
+  color: var(--ink-400);
+  white-space: nowrap;
+}
+
+.runBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.runBtn:hover:not(:disabled) {
+  background: var(--accent-dim);
+}
+
+.runBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.keyAlert {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--amber);
+  border-radius: 8px;
+  background: var(--amber-bg);
+  color: var(--ink-200);
+  font-size: 13px;
+  text-align: left;
+}
+
+.keyAlert svg {
+  color: var(--amber);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.keyAlert p {
+  margin: 2px 0 0;
+  color: var(--ink-300);
+  line-height: 1.45;
+}
+
+.keyAlert code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--ink-800);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.mainZones {
+  display: flex;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.editorZone {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.editorZone > * {
+  flex: 1;
+}
+
+.editorEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 260px;
+  padding: 24px;
+  border: 1.5px dashed var(--ink-700);
+  border-radius: 10px;
+  background: var(--ink-900);
+  color: var(--ink-400);
+  font-size: 13.5px;
+  text-align: center;
+}
+
+.exportPanel {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--ink-700);
+  border-radius: 10px;
+  background: var(--ink-900);
+}
+
+.panelHeader {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-400);
+}
+
+.docMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ink-700);
+}
+
+.docName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-100);
+  overflow-wrap: anywhere;
+}
+
+.docPages {
+  font-size: 12px;
+  color: var(--ink-400);
+}
+
+.partialBadge {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--amber-bg);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  font-size: 10.5px;
+  font-weight: 600;
+}
+
+.exportBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--ink-600);
+  border-radius: 8px;
+  background: var(--ink-800);
+  color: var(--ink-100);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.exportBtn:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.spin {
+  animation: ocrSpin 0.9s linear infinite;
+}
+
+@keyframes ocrSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .mainZones {
+    flex-direction: column;
+  }
+
+  .exportPanel {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .docMeta {
+    border-bottom: none;
+    padding-bottom: 0;
+    border-right: 1px solid var(--ink-700);
+    padding-right: 10px;
+  }
+}

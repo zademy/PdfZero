@@ -1360,8 +1360,8 @@ export async function addWatermark(input, textOrOptions, maybeOptions = {}) {
   return await doc.save();
 }
 
-export function downloadBytes(bytes, filename) {
-  const blob = new Blob([bytes], { type: "application/pdf" });
+export function downloadBytes(bytes, filename, mime = "application/pdf") {
+  const blob = new Blob([bytes], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

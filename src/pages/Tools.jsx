@@ -27,6 +27,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar.jsx";
+import FileDropper from "../components/ui/FileDropper.jsx";
 import {
   mergePdfs,
   splitPdf,
@@ -41,54 +42,20 @@ import {
   protectPdf,
 } from "../lib/pdfExporter.js";
 import { loadPdf, renderThumbnail, renderPage } from "../lib/pdfRenderer.js";
-import { ocrPage, OcrUnavailableError } from "../lib/ocrPipeline.js";
 import styles from "./Tools.module.css";
+
+// Heavy markdown editor — only loaded when the OCR Scanner is opened.
+const OcrScannerWorkspace = React.lazy(
+  () => import("../components/ocrscanner/OcrScannerWorkspace.jsx"),
+);
 
 /* ─────────────────── shared helpers ─────────────────── */
 
-function FileDropper({
-  onFile,
-  file,
-  onClear,
-  multiple = false,
-  label = "Drop PDF here or click to browse",
-}) {
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    accept: { "application/pdf": [".pdf"] },
-    maxFiles: multiple ? undefined : 1,
-    onDrop: multiple ? (files) => onFile(files) : ([f]) => f && onFile(f),
-  });
-
-  if (!multiple && file) {
-    return (
-      <div className={styles.fileChip}>
-        <FileText size={15} />
-        <span className={styles.fileName}>{file.name}</span>
-        <span className={styles.fileSize}>
-          {(file.size / 1024).toFixed(0)} KB
-        </span>
-        <button className={styles.removeBtn} onClick={onClear}>
-          <X size={13} />
-        </button>
-      </div>
-    );
-  }
-
+function ToolShell({ title, desc, children, wide = false, full = false }) {
   return (
     <div
-      {...getRootProps()}
-      className={`${styles.dropArea} ${isDragActive ? styles.dropActive : ""}`}
+      className={`${styles.toolUI} ${wide ? styles.toolUIWide : ""} ${full ? styles.toolUIFull : ""}`}
     >
-      <input {...getInputProps()} />
-      <Upload size={28} />
-      <span>{isDragActive ? "Drop it!" : label}</span>
-    </div>
-  );
-}
-
-function ToolShell({ title, desc, children, wide = false }) {
-  return (
-    <div className={`${styles.toolUI} ${wide ? styles.toolUIWide : ""}`}>
       <h2 className={styles.toolUITitle}>{title}</h2>
       <p className={styles.toolUIDesc}>{desc}</p>
       {children}
@@ -1458,72 +1425,19 @@ function ReorderTool() {
 }
 
 function OcrTool() {
-  const [file, setFile] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [progress, setProgress] = useState(0);
-
-  const handleOcr = async () => {
-    if (!file) return;
-    setBusy(true);
-    setProgress(0);
-    const tid = toast.loading("Detecting OCR engine...");
-    try {
-      const buf = await file.arrayBuffer();
-      const doc = await loadPdf(buf.slice(0));
-      const total = doc.numPages;
-      const allText = [];
-
-      for (let p = 1; p <= total; p++) {
-        toast.loading(`OCR page ${p}/${total}...`, { id: tid });
-        const { raw } = await ocrPage(p, { format: false });
-        setProgress(Math.round((p / total) * 100));
-        if (raw.trim()) allText.push(`--- Page ${p} ---\n` + raw);
-      }
-
-      // Download as text file
-      const blob = new Blob([allText.join("\n\n")], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = file.name.replace(".pdf", "") + "-ocr.txt";
-      a.click();
-      URL.revokeObjectURL(url);
-      toast.success(`OCR complete — ${total} pages`, { id: tid });
-    } catch (e) {
-      toast.error(
-        e instanceof OcrUnavailableError
-          ? e.message
-          : "OCR failed: " + e.message,
-        { id: tid },
-      );
-    }
-    setBusy(false);
-    setProgress(0);
-  };
-
   return (
     <ToolShell
       title="OCR Scanner"
-      desc="Extract text from scanned or image-based PDFs with a local Ollama OCR model (glm-ocr) — runs 100% on your machine."
+      desc="Extract text from scanned PDFs into a rich markdown editor — recognition runs 100% on your machine with Ollama glm-ocr, formatting via GLM."
+      full
     >
-      <FileDropper file={file} onFile={setFile} onClear={() => setFile(null)} />
-      {busy && (
-        <div className={styles.progressBar}>
-          <div
-            className={styles.progressFill}
-            style={{ width: `${progress}%` }}
-          />
-          <span>{progress}%</span>
-        </div>
-      )}
-      <ActionBtn
-        onClick={handleOcr}
-        disabled={!file}
-        loading={busy}
-        icon={ScanLine}
+      <React.Suspense
+        fallback={
+          <div className={styles.dropArea}>Loading the OCR workspace...</div>
+        }
       >
-        {busy ? `Scanning... ${progress}%` : "Run OCR & Download Text"}
-      </ActionBtn>
+        <OcrScannerWorkspace />
+      </React.Suspense>
     </ToolShell>
   );
 }
@@ -1785,7 +1699,7 @@ const TOOL_DEFS = [
     label: "OCR Scanner",
     color: "#10b981",
     category: "Convert",
-    desc: "Extract text from scanned PDFs.",
+    desc: "Scanned PDFs to an editable markdown document.",
   },
   {
     id: "watermark",

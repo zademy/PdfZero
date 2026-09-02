@@ -1,0 +1,113 @@
+/* Dark theming for @mdxeditor/editor over the app's design tokens
+   (spec #6, ticket #8).
+//
+// Two layers, both needed:
+//   1. :root overrides of the editor's slate/blue scales. The editor's own
+//      stylesheet derives every semantic color (--base*, --accent*) from
+//      them, and its radix popovers/selects/tooltips portal to <body> —
+//      outside any component subtree — so the scales must be redefined at
+//      the root to theme portal content. The names are mdxeditor-namespaced;
+//      nothing else in the app consumes them.
+//   2. Component-scoped fixes: --basePageBg is hardcoded white upstream, and
+//      the source/diff CodeMirror rides cm6-theme-basic-light, so its
+//      backgrounds, gutters and selection are pinned to the ink ramp here.
+//      (The theme's syntax token colors are Nord light-on-dark tones and
+//      read well on ink as-is.) */
+
+:root {
+  --slate-1: var(--ink-900);
+  --slate-2: var(--ink-800);
+  --slate-3: var(--ink-700);
+  --slate-4: var(--ink-600);
+  --slate-5: var(--ink-500);
+  --slate-6: var(--ink-700);
+  --slate-7: var(--ink-600);
+  --slate-8: var(--ink-500);
+  --slate-9: var(--ink-300);
+  --slate-10: var(--ink-200);
+  --slate-11: var(--ink-100);
+  --slate-12: var(--ink-0);
+
+  --blue-1: #171010;
+  --blue-2: #1d1313;
+  --blue-3: #2a1616;
+  --blue-4: #361a1a;
+  --blue-5: #401d1d;
+  --blue-6: var(--accent-bg2);
+  --blue-7: var(--accent-dim);
+  --blue-8: var(--accent-dim);
+  --blue-9: var(--accent);
+  --blue-10: #f05656;
+  --blue-11: #ff8f8f;
+  --blue-12: #ffe5e5;
+}
+
+.ocrMdxEditor {
+  --basePageBg: var(--ink-950);
+  --font-body: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --sp-font-body: var(--font-sans);
+  --sp-font-mono: var(--font-mono);
+  position: relative;
+  background-color: var(--ink-950);
+  color: var(--ink-100);
+  border: 1px solid var(--ink-700);
+  border-radius: 10px;
+}
+
+/* In-document search box styles live in MarkdownEditor.module.css — this
+   sheet keeps only third-party/internal selectors. */
+
+/* Search match highlights (CSS Custom Highlights API) — not styled upstream */
+::highlight(MdxSearch) {
+  background-color: var(--ink-500);
+  color: var(--ink-0);
+}
+
+::highlight(MdxFocusSearch) {
+  background-color: var(--accent);
+  color: #fff;
+}
+
+/* Rich-text content area */
+.ocrMdxEditor [role="textbox"] {
+  min-height: 380px;
+}
+
+/* Full toolbar: let it wrap on narrow panes instead of clipping buttons */
+.ocrMdxEditor [role="toolbar"] {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+/* Source / diff CodeMirror panes */
+.ocrMdxEditor .cm-editor {
+  background-color: var(--ink-900);
+  color: var(--ink-100);
+}
+
+.ocrMdxEditor .cm-editor .cm-scroller {
+  font-family: var(--font-mono);
+}
+
+.ocrMdxEditor .cm-gutters {
+  background-color: var(--ink-900);
+  color: var(--ink-400);
+  border-right: 1px solid var(--ink-700);
+}
+
+.ocrMdxEditor .cm-activeLine {
+  background-color: var(--ink-800);
+}
+
+.ocrMdxEditor .cm-selectionBackground,
+.ocrMdxEditor .cm-focused .cm-selectionBackground,
+.ocrMdxEditor .cm-content ::selection {
+  background-color: var(--ink-600);
+}
+
+/* Code blocks inside the rich-text area (nested CodeMirror) */
+.ocrMdxEditor .code-block__wrapper,
+.ocrMdxEditor .code-block__lang-select {
+  background-color: var(--ink-900);
+}

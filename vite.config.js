@@ -24,6 +24,7 @@ export default defineConfig({
           groups: [
             { name: "pdf-lib", test: /pdf-lib/ },
             { name: "pdfjs", test: /pdfjs-dist/ },
+            { name: "mdxeditor", test: /@mdxeditor/ },
           ],
         },
       },
