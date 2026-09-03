@@ -51,6 +51,7 @@ function formatWhen(ts) {
   return new Date(ts).toLocaleDateString(undefined, {
     day: "numeric",
     month: "short",
+    year: "numeric",
   });
 }
 
@@ -124,14 +125,23 @@ export default function OcrScannerWorkspace({ onExpandChange }) {
     }, AUTOSAVE_DELAY_MS);
   };
 
-  useEffect(() => () => clearTimeout(saveTimerRef.current), []);
+  useEffect(
+    () => () => {
+      // Flush (not just cancel) a pending autosave on unmount.
+      void saveNow();
+    },
+    [],
+  );
 
   const openDocument = async (doc) => {
     await saveNow(); // flush pending edits of the document being left
+    // The list entry may be stale (autosaves don't refresh it) — read the
+    // committed record so reopening never rolls back saved edits.
+    const fresh = (await storeRef.current?.get(doc.id)) ?? doc;
     titleEditedRef.current = false;
-    mdRef.current = doc.markdown;
-    editorRef.current?.setMarkdown(doc.markdown);
-    setCurrent(doc);
+    mdRef.current = fresh.markdown;
+    editorRef.current?.setMarkdown(fresh.markdown);
+    setCurrent(fresh);
   };
 
   const handleRun = async () => {
@@ -167,7 +177,7 @@ export default function OcrScannerWorkspace({ onExpandChange }) {
       const doc = {
         id: crypto.randomUUID(),
         // Provisional instant title; the Spanish GLM title lands below.
-        title: deriveFallbackTitle(markdown) || baseName,
+        title: deriveFallbackTitle(markdown) || baseName || "Documento OCR",
         markdown,
         meta: {
           sourceName: baseName,
@@ -201,7 +211,7 @@ export default function OcrScannerWorkspace({ onExpandChange }) {
             !storeRef.current
           )
             return;
-          const updated = { ...doc, title };
+          const updated = { ...doc, title, markdown: mdRef.current };
           await storeRef.current.save(updated);
           if (currentRef.current?.id === doc.id && !titleEditedRef.current) {
             setCurrent(updated);
