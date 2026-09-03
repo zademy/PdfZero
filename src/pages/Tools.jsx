@@ -1409,23 +1409,23 @@ function ReorderTool() {
 }
 
 function OcrTool() {
-  // Compact centered box until a document exists; then the shell goes full
-  // width so the editor + panel zone has room. The run controls stay a
-  // centered 560px column either way (matches every other tool).
-  const [hasDoc, setHasDoc] = useState(false);
+  // Compact centered box until the workspace has content (an open document
+  // or archive entries); then the shell goes full width for the editor +
+  // panel zone. The run controls stay a centered 560px column either way.
+  const [expanded, setExpanded] = useState(false);
   return (
     <ToolShell
       title="OCR Scanner"
       desc="Extract text from scanned PDFs into a rich markdown editor — recognition runs 100% on your machine with Ollama glm-ocr, formatting via GLM."
-      wide={hasDoc}
-      full={hasDoc}
+      wide={expanded}
+      full={expanded}
     >
       <React.Suspense
         fallback={
           <div className={styles.dropArea}>Loading the OCR workspace...</div>
         }
       >
-        <OcrScannerWorkspace onDocumentChange={setHasDoc} />
+        <OcrScannerWorkspace onExpandChange={setExpanded} />
       </React.Suspense>
     </ToolShell>
   );

@@ -18,6 +18,7 @@ const browserGlobals = {
   requestAnimationFrame: "readonly",
   navigator: "readonly",
   localStorage: "readonly",
+  indexedDB: "readonly",
   FileReader: "readonly",
   Blob: "readonly",
   Worker: "readonly",
