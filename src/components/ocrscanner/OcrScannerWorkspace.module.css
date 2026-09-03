@@ -145,6 +145,23 @@
   border-bottom: 1px solid var(--ink-700);
 }
 
+.titleInput {
+  width: 100%;
+  padding: 5px 8px;
+  border: 1px solid var(--ink-700);
+  border-radius: 6px;
+  background: var(--ink-800);
+  color: var(--ink-100);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+}
+
+.titleInput:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .docName {
   font-size: 13px;
   font-weight: 600;

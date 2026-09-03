@@ -32,7 +32,12 @@ import ActionBtn from "../ui/ActionBtn.jsx";
 import { loadPdf } from "../../lib/pdfRenderer.js";
 import { ocrPage, OcrUnavailableError } from "../../lib/ocrPipeline.js";
 import { formatOcrMarkdown } from "../../lib/ocrFormat.js";
-import { assembleOcrDocument, formatWithRetry } from "../../lib/ocrDocument.js";
+import {
+  assembleOcrDocument,
+  formatWithRetry,
+  deriveFallbackTitle,
+} from "../../lib/ocrDocument.js";
+import { generateSpanishTitle } from "../../lib/ocrTitles.js";
 import { openOcrDocumentStore } from "../../lib/ocrDocumentStore.js";
 import { getGlmApiKey } from "../../lib/translation.js";
 import { downloadBytes } from "../../lib/pdfExporter.js";
@@ -61,6 +66,9 @@ export default function OcrScannerWorkspace({ onExpandChange }) {
   const storeRef = useRef(null);
   const currentRef = useRef(null);
   const saveTimerRef = useRef(null);
+  // Set when the user edits the title by hand — the generated Spanish title
+  // must never overwrite a manual rename.
+  const titleEditedRef = useRef(false);
   // Build-time gate: the key ships with the bundle, so read it once.
   const hasGlmKey = Boolean(getGlmApiKey());
 
@@ -120,6 +128,7 @@ export default function OcrScannerWorkspace({ onExpandChange }) {
 
   const openDocument = async (doc) => {
     await saveNow(); // flush pending edits of the document being left
+    titleEditedRef.current = false;
     mdRef.current = doc.markdown;
     editorRef.current?.setMarkdown(doc.markdown);
     setCurrent(doc);
@@ -157,7 +166,8 @@ export default function OcrScannerWorkspace({ onExpandChange }) {
       const baseName = file.name.replace(/\.pdf$/i, "");
       const doc = {
         id: crypto.randomUUID(),
-        title: baseName,
+        // Provisional instant title; the Spanish GLM title lands below.
+        title: deriveFallbackTitle(markdown) || baseName,
         markdown,
         meta: {
           sourceName: baseName,
@@ -175,9 +185,33 @@ export default function OcrScannerWorkspace({ onExpandChange }) {
           toast.error("Could not save the document to the archive.");
         }
       }
+      titleEditedRef.current = false;
       mdRef.current = markdown;
       editorRef.current?.setMarkdown(markdown);
       setCurrent(doc);
+
+      // Spanish auto-title (#10): best-effort upgrade of the provisional
+      // title once the model answers — never over a manual rename.
+      generateSpanishTitle(markdown)
+        .then(async (title) => {
+          if (
+            titleEditedRef.current ||
+            currentRef.current?.id !== doc.id ||
+            title === doc.title ||
+            !storeRef.current
+          )
+            return;
+          const updated = { ...doc, title };
+          await storeRef.current.save(updated);
+          if (currentRef.current?.id === doc.id && !titleEditedRef.current) {
+            setCurrent(updated);
+            await refreshList();
+          }
+        })
+        .catch(() => {
+          /* keep the provisional title */
+        });
+
       toast.success(`OCR complete — ${total} page${total === 1 ? "" : "s"}`, {
         id: tid,
       });
@@ -213,6 +247,12 @@ export default function OcrScannerWorkspace({ onExpandChange }) {
       mdRef.current = "";
     }
     await refreshList();
+  };
+
+  const handleTitleChange = (value) => {
+    titleEditedRef.current = true; // protects a manual rename from the model
+    setCurrent((c) => (c ? { ...c, title: value } : c));
+    scheduleAutosave();
   };
 
   const handleExport = (kind) => {
@@ -313,7 +353,13 @@ export default function OcrScannerWorkspace({ onExpandChange }) {
                   <span>Document</span>
                 </header>
                 <div className={styles.docMeta}>
-                  <span className={styles.docName}>{current.title}</span>
+                  <input
+                    className={styles.titleInput}
+                    value={current.title}
+                    onChange={(e) => handleTitleChange(e.target.value)}
+                    aria-label="Document title"
+                    spellCheck={false}
+                  />
                   <span className={styles.docPages}>
                     {current.meta.pages} page
                     {current.meta.pages === 1 ? "" : "s"}
