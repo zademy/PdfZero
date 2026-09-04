@@ -44,7 +44,7 @@
   letter-spacing: -0.3px;
 }
 
-.logoBeta {
+.logoVersion {
   font-size: 10px;
   background: var(--accent-bg2);
   color: var(--accent);
@@ -159,7 +159,7 @@
   .privacyBadge {
     display: none;
   }
-  .logoBeta {
+  .logoVersion {
     display: none;
   }
   /* Hero already has its own "Start editing free" CTA — hide the navbar

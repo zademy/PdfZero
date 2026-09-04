@@ -1,0 +1,53 @@
+name: Release
+
+# Push a version tag (v1.0.0, v1.1.0, …) triggers: build + GitHub Release
+# with GitHub-native auto-generated notes (every commit since the previous
+# tag, first-time contributors, full diffstat).
+#
+# Release flow:
+#   npm version patch | minor | major   # bumps package.json + commits + tags
+#   git push --follow-tags              # triggers this workflow
+#
+# The navbar version badge reads package.json at build time, so the site
+# shows the new version automatically from this build onward.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Package dist
+        run: zip -r "pdfzero-${GITHUB_REF_NAME}-dist.zip" dist
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: pdfzero-${{ github.ref_name }}-dist.zip

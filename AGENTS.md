@@ -10,6 +10,19 @@ Browser-only PDF editor: every operation (render, edit, OCR, export, encrypt) ru
 - `npm test` — Vitest suite (`src/lib/*.test.js`, `src/store/*.test.js`). Run it after touching `src/lib/` or the store.
 - `npm run format` — Prettier over the repo (config in `.prettierrc.json`). Formatting is canonical; never hand-align style.
 
+## Versioning & releases
+
+`package.json` `version` is the single source of truth; the navbar badge renders it (`v{version}`) at build time. Never hand-edit the badge.
+
+To cut a release:
+
+```bash
+npm version patch   # or minor / major — bumps package.json, commits, tags vX.Y.Z
+git push --follow-tags
+```
+
+Pushing the tag triggers `.github/workflows/release.yml`: lint + tests + build, then a GitHub Release created with `generate_release_notes: true` (GitHub-native notes: every commit since the previous tag, first-time contributors, diffstat) plus the built `dist/` zip attached. `.github/workflows/ci.yml` runs lint + tests + build on every push to `main` and on PRs.
+
 ## The two-engine rule
 
 Two PDF libraries, split by direction. Never cross the roles:

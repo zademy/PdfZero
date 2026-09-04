@@ -17,7 +17,7 @@ export default function Navbar({ variant = "app" }) {
             <FileText size={14} />
           </div>
           <span className={styles.logoName}>PDFZero</span>
-          <span className={styles.logoBeta}>beta</span>
+          <span className={styles.logoVersion}>v{__APP_VERSION__}</span>
         </Link>
 
         {variant === "app" && (

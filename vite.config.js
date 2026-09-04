@@ -1,9 +1,17 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve } from "path";
+import { createRequire } from "module";
+
+// package.json is the single source of truth for the version; inject it at
+// build time so the navbar badge (and anything else) reads __APP_VERSION__.
+const { version } = createRequire(import.meta.url)("./package.json");
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(version),
+  },
   resolve: {
     alias: {
       "@": resolve(import.meta.dirname, "src"),
