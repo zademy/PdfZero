@@ -41,6 +41,10 @@ src/
     pdfExporter.js    pdf-lib: exportPdf, merge/split/rotate/watermark, page ops,
                       downloadBytes, compress (iterative raster to target size),
                       encryptPDF via @pdfsmaller/pdf-encrypt
+    pdfDecrypt.js     the inverse of protect: decryptPdf removes the Standard
+                      security handler for real (AES-256/AESV3 via U/UE + O/OE,
+                      AESV2, RC4 40/128); throws PasswordRequiredError when an
+                      open password is needed
     pdfTextLayout.js  text geometry: textChars, layoutTextForBlock, splitTextLines
     ocrPipeline.js    one-function OCR flow: ocrPage renders the page, runs
                       the single engine, cleans blocks (ocrBlocks, ADR 0001),
@@ -120,11 +124,26 @@ The scanner is a two-zone document workspace, NOT the simple tool shape above:
 - Imports are relative (`../lib/...`), even though the `@` alias exists — follow the existing style.
 - Components PascalCase `.jsx`; lib files camelCase `.js`; state flows from `usePdfStore` via direct hook subscription.
 
-## Mandatory validation workflow
+## Mandatory validation workflow (per module)
 
-These rules apply before declaring any code, test, style, configuration, or documentation change complete.
+Validation rules are scoped per module. Each module below declares its own checks; apply them only when the change touches that module. Modules whose test rules are still pending rely only on the global Commands section (lint/tests). Add new modules as new `### <Module> module` sections — never apply one module's rules to another.
 
-### Playwright MCP gate
+Module index:
+
+| Module | Route(s) | Test profile |
+| --- | --- | --- |
+| Editor (PDF editing) | `/editor` | Playwright MCP gate + canonical PDF translation fixture (defined below) |
+| Tools (individual PDF tools) | `/tools`, `/tools/:toolId` | Playwright MCP gate + per-tool byte-verification recipes (defined below) |
+| OCR Scanner | `/tools` (scanner workspace) | Pending — to be defined |
+| Landing & shell | `/` | Pending — to be defined |
+
+### Editor module (PDF editing)
+
+Scope: the editing functionality — the `/editor` route (`src/pages/Editor.jsx`), `src/components/editor/`, the editing model in `src/store/pdfStore.js`, and `src/lib/pdfRenderer.js` / `src/lib/pdfExporter.js` / `src/lib/pdfTextLayout.js` when the change affects editing behavior.
+
+These rules apply before declaring any code, test, style, configuration, or documentation change in this module complete.
+
+#### Playwright MCP gate
 
 - Use the Playwright MCP for every completed change. Do not replace it with a manual browser check or silently skip it.
 - Before navigating, prove that the MCP is available with a harmless Playwright operation. Navigation is allowed only after that operation succeeds.
@@ -132,7 +151,7 @@ These rules apply before declaring any code, test, style, configuration, or docu
 - Once available, navigate the relevant PdfZero route, exercise the changed behavior when possible, and capture the smallest useful evidence: accessibility snapshot, console result, and screenshot when visual output is involved.
 - Report the validation result and any blocker. A blocked Playwright check is an incomplete change, not a passing check.
 
-### Canonical PDF translation fixture
+#### Canonical PDF translation fixture
 
 - Always use the resource labeled `[PDF 1]`, whose filename is `pdfcomplete-translate-test.pdf`. Never substitute another PDF or a generated derivative as the source fixture.
 - Verify that the source has exactly 31 pages before translating. Translate only pages 2 through 31, inclusive; page 1 must remain outside the translation scope.
@@ -140,6 +159,87 @@ These rules apply before declaring any code, test, style, configuration, or docu
 - Translate into clear Latin American Spanish. Preserve reading order, headings, tables, lists, footnotes, citations, numbers, units, symbols, and page boundaries. Do not invent, omit, summarize, or reflow source content.
 - Keep a page-to-page mapping for all 30 translated pages and retain per-page evidence. If the fixture is unavailable, unreadable, has the wrong page count, or a GLM/Z.AI page call fails, stop claiming success and continue the recovery/retry process instead of silently skipping that page.
 - After translation, use Playwright to validate the rendered result for pages 2–31 and use GLM/Z.AI for a final language/content pass. The run passes only when every requested page has evidence and no unresolved page-level finding remains.
+
+### Tools module (individual PDF tools)
+
+Scope: the tool pages — `/tools` and `/tools/:toolId` (`src/pages/Tools.jsx`), the shared drop-area/action-button UI (`src/components/ui/` — `FileDropper`, `ActionBtn`, `DropZone`), and `src/lib/pdfExporter.js` / `src/lib/pdfDecrypt.js` / `src/lib/markdownText.js` when the change affects tool operations (merge, split, rotate, watermark, compress, encrypt, decrypt, downloads).
+
+#### Playwright MCP gate
+
+Same gate as the Editor module: prove the Playwright MCP is available before navigating, exercise the changed tool, capture snapshot/console/screenshot evidence, and never declare a change complete with a blocked Playwright check. `npm run dev` must be serving `localhost:5173`.
+
+#### Fixtures
+
+All fixtures live in `.playwright-mcp/`:
+
+- `pdfcomplete-translate-test.pdf` — the canonical 31-page PDF (`[PDF 1]`, shared with the Editor module). Use for merge/split/extract/compress/watermark coverage over many pages.
+- `pdfzero-translate-test.pdf` — 2-page scanned PDF (no extractable text). Use for rotate/reorder/protect (small, fast).
+- `owner-locked.pdf` / open-password variants — generated on demand with `@pdfsmaller/pdf-encrypt` (see Unlock recipe). Never commit them.
+
+#### Route reality
+
+`/tools/:toolId` deep-links (fixed 2026-09-04): `Tools.jsx` reads `useParams().toolId` and activates the tool on mount/param change; clicking a tool syncs the URL via `navigate(`/tools/${id}`, { replace: true })`, and the "All tools" back button returns to `/tools`. An invalid id falls back to the card grid. Both entry paths (direct URL and sidebar/card click) are valid test routes.
+
+#### Per-tool recipes
+
+Every recipe: upload via the `FileDropper` (click triggers a file chooser → `browser_file_upload` with absolute fixture paths; downloads land in `.playwright-mcp/`), then verify the DOWNLOADED FILE CONTENT with Node — never trust the success toast alone:
+
+| Tool | Actions | Pass criteria (verify output bytes) |
+| --- | --- | --- |
+| Merge | upload both fixtures → "Merge 2 PDFs" | `PDFDocument.load` → 33 pages (31+2) |
+| Split (by range) | upload merged/31p → From 1 To 5 → Split | part has exactly 5 pages |
+| Split (every N) | same file → every 16 → Split | 3 parts: 16+16+1 |
+| Extract | upload 33p → "1, 3, 5-8" | 6 pages |
+| Reorder | upload 2p fixture → drag page 1 onto page 2 → Save | content-stream hashes of output == reversed hashes of input |
+| Rotate | upload 2p → choose 180° → Rotate | `page.getRotation().angle` == +180 on all pages |
+| Compress (lossless) | upload 31p → "Lossless Compress" | pages == 31, size ≤ original |
+| Compress (target) | upload 2p (55 KB) → target 30 → "Compress below 30 KB" | size ≤ 30 KB, pages == 2 |
+| Watermark | upload 31p (text CONFIDENTIAL, defaults) → Apply | pdfjs `getTextContent` page 1/2/31 contains CONFIDENTIAL; live preview renders |
+| Protect | upload 2p → open pw → Protect | `PDFDocument.load` without `ignoreEncryption` throws encrypted-error |
+| Unlock | upload owner-locked fixture → Remove Restrictions | output loads WITHOUT `ignoreEncryption` (`/Encrypt` fully removed) |
+| Unlock (pw) | upload open-pw PDF, no pw → expect error toast; with pw → success | toast "needs its open password" / output loads clean |
+| Redact | (redirect tool) click "Open PDF Editor" | URL becomes `/editor`, 0 console errors |
+
+Verification snippets live in the session record; the core pattern is:
+
+```bash
+node --input-type=module -e "
+import fs from 'fs';
+import { PDFDocument } from 'pdf-lib';
+const doc = await PDFDocument.load(fs.readFileSync('.playwright-mcp/<output>.pdf'));
+console.log(doc.getPageCount());
+"
+```
+
+#### Unlock fixtures generation
+
+```bash
+node --input-type=module -e "
+import fs from 'fs';
+import { encryptPDF } from '@pdfsmaller/pdf-encrypt';
+const bytes = new Uint8Array(fs.readFileSync('.playwright-mcp/pdfzero-translate-test.pdf'));
+const enc = await encryptPDF(bytes, '', { ownerPassword: 'owner999', algorithm: 'AES-256' });
+fs.writeFileSync('.playwright-mcp/owner-locked.pdf', enc instanceof Uint8Array ? enc : new Uint8Array(enc));
+"
+```
+
+Swap `''` for a real password (and keep it) to build open-password fixtures.
+
+#### Baseline (2026-09-04 run)
+
+All 12 tools passed E2E. One real bug found and fixed in that pass: Unlock used `PDFDocument.load(..., { ignoreEncryption: true })` + `save()` — that re-serializes the file keeping `/Encrypt` and ciphertext (false success; restrictions survived). Fixed by `src/lib/pdfDecrypt.js` (real Standard-handler decryption: AES-256/AESV3 via U/UE + O/OE, AESV2, RC4 40/128; primitives re-imported from `@pdfsmaller/pdf-encrypt`, no new dependency) + optional open-password input in `UnlockTool`. Unit tests: `src/lib/pdfDecrypt.test.js` (6). If you touch `pdfDecrypt.js` or the Unlock tool, re-run its unit tests AND the two Unlock recipes above.
+
+### OCR Scanner module
+
+Scope: the scanner workspace — `src/components/ocrscanner/` (`OcrScannerWorkspace`, `MarkdownEditor`) and the OCR lib chain (`ocrPipeline.js`, `ocrBlocks.js`, `ollamaOcr.js`, `ocrFormat.js`, `ocrDocument.js`, `ocrDocumentStore.js`, `ocrTitles.js`, `translation.js`).
+
+Test rules: pending. Until defined, changes in this module validate with the global Commands section (lint/tests) only.
+
+### Landing & shell module
+
+Scope: the landing page and app shell — `/` (`src/pages/Landing.jsx`), `src/components/layout/Navbar`, routing in `src/App.jsx` / `src/main.jsx`, and global styling (`src/styles/globals.css`).
+
+Test rules: pending. Until defined, changes in this module validate with the global Commands section (lint/tests) only.
 
 ## Agent skills
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import {
   Scissors,
@@ -1544,6 +1544,7 @@ function ProtectTool() {
 }
 function UnlockTool() {
   const [file, setFile] = useState(null);
+  const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
   const handleUnlock = async () => {
@@ -1551,14 +1552,23 @@ function UnlockTool() {
     setBusy(true);
     const tid = toast.loading("Removing restrictions...");
     try {
-      const { PDFDocument } = await import("pdf-lib");
+      const { decryptPdf } = await import("../lib/pdfDecrypt.js");
       const buf = await file.arrayBuffer();
-      const doc = await PDFDocument.load(buf, { ignoreEncryption: true });
-      const bytes = await doc.save();
+      const bytes = await decryptPdf(new Uint8Array(buf), {
+        password: password || undefined,
+      });
       downloadBytes(bytes, `unlocked-${file.name}`);
       toast.success("PDF saved without restrictions", { id: tid });
     } catch (e) {
-      toast.error("Failed: " + e.message, { id: tid });
+      const needsPassword =
+        e.name === "PasswordRequiredError" ||
+        e.message?.includes("open password");
+      toast.error(
+        needsPassword
+          ? "This PDF needs its open password — enter it above and retry."
+          : "Failed: " + e.message,
+        { id: tid },
+      );
     }
     setBusy(false);
   };
@@ -1569,9 +1579,19 @@ function UnlockTool() {
       desc="Remove copy/print restrictions from a PDF you own."
     >
       <FileDropper file={file} onFile={setFile} onClear={() => setFile(null)} />
+      <div className={styles.formField}>
+        <label className={styles.formLabel}>Open password (optional)</label>
+        <input
+          type="password"
+          className={styles.formInput}
+          placeholder="Only if the PDF asks for one to open"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+      </div>
       <div className={styles.infoBox}>
-        ℹ️ This removes PDF user restrictions (copy, print). It does not bypass
-        strong AES-256 owner passwords.
+        ℹ️ Removes the encryption dictionary entirely (RC4, AES-128, AES-256) so
+        restrictions disappear from the file you own.
       </div>
       <ActionBtn
         onClick={handleUnlock}
@@ -1718,7 +1738,7 @@ const TOOL_DEFS = [
     id: "redact",
     icon: EyeOff,
     label: "Redact PDF",
-    color: "#1a1a1a",
+    color: "#a0a0ac",
     category: "Secure",
     desc: "Black out sensitive content.",
   },
@@ -1742,8 +1762,26 @@ const TOOL_COMPONENTS = {
 const CATEGORIES = ["All", "Organize", "Optimize", "Convert", "Secure", "Edit"];
 
 export default function Tools() {
+  const { toolId } = useParams();
+  const navigate = useNavigate();
   const [activeCat, setActiveCat] = useState("All");
   const [activeTool, setActiveTool] = useState(null);
+
+  useEffect(() => {
+    if (toolId && TOOL_COMPONENTS[toolId]) {
+      setActiveTool(toolId);
+    } else if (!toolId) {
+      setActiveTool(null);
+    }
+  }, [toolId]);
+
+  const openTool = useCallback(
+    (id) => {
+      setActiveTool(id);
+      navigate(`/tools/${id}`, { replace: true });
+    },
+    [navigate],
+  );
 
   const filtered =
     activeCat === "All"
@@ -1778,7 +1816,7 @@ export default function Tools() {
                 <button
                   key={tool.id}
                   className={`${styles.toolListItem} ${activeTool === tool.id ? styles.toolListActive : ""}`}
-                  onClick={() => setActiveTool(tool.id)}
+                  onClick={() => openTool(tool.id)}
                 >
                   <div
                     className={styles.toolListIcon}
@@ -1802,7 +1840,7 @@ export default function Tools() {
             <>
               <button
                 className={styles.backBtn}
-                onClick={() => setActiveTool(null)}
+                onClick={() => navigate("/tools")}
               >
                 <ArrowLeft size={14} /> All tools
               </button>
@@ -1823,7 +1861,7 @@ export default function Tools() {
                     <div
                       key={tool.id}
                       className={styles.toolCard}
-                      onClick={() => setActiveTool(tool.id)}
+                      onClick={() => openTool(tool.id)}
                     >
                       <div
                         className={styles.toolCardIcon}

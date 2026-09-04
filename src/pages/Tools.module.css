@@ -38,8 +38,10 @@
 
 .toolCount {
   font-size: 11px;
-  color: var(--tx-4);
+  font-weight: 600;
+  color: var(--tx-2);
   background: var(--bg-card);
+  border: 1px solid var(--brd-2);
   padding: 2px 7px;
   border-radius: 99px;
 }
@@ -54,11 +56,12 @@
 
 .catBtn {
   font-size: 11px;
+  font-weight: 500;
   padding: 3px 10px;
   border-radius: 99px;
   background: var(--bg-card);
-  border: 1px solid var(--brd);
-  color: var(--tx-3);
+  border: 1px solid var(--brd-2);
+  color: var(--tx-2);
   cursor: pointer;
   transition: all var(--t-fast);
   font-family: var(--font-sans);
@@ -134,11 +137,13 @@
 
 .toolListCat {
   font-size: 10px;
-  color: var(--tx-4);
+  color: var(--tx-2);
+  opacity: 0.85;
 }
 
 .toolListArrow {
-  color: var(--tx-4);
+  color: var(--tx-2);
+  opacity: 0.7;
   flex-shrink: 0;
 }
 
