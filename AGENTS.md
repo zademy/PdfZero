@@ -14,14 +14,14 @@ Browser-only PDF editor: every operation (render, edit, OCR, export, encrypt) ru
 
 `package.json` `version` is the single source of truth; the navbar badge renders it (`v{version}`) at build time. Never hand-edit the badge.
 
-To cut a release:
+Releases are fully automatic. To cut one, bump the version and push:
 
 ```bash
-npm version patch   # or minor / major — bumps package.json, commits, tags vX.Y.Z
-git push --follow-tags
+npm version patch   # or minor / major — bumps package.json and commits
+git push            # that's it
 ```
 
-Pushing the tag triggers `.github/workflows/release.yml`: lint + tests + build, then a GitHub Release created with `generate_release_notes: true` (GitHub-native notes: every commit since the previous tag, first-time contributors, diffstat) plus the built `dist/` zip attached. `.github/workflows/ci.yml` runs lint + tests + build on every push to `main` and on PRs.
+On every push to `main`, `.github/workflows/release.yml` runs lint + tests + build; if all pass and `vX.Y.Z` (the package.json version) has no tag yet, it tags and creates the GitHub Release with `generate_release_notes: true` (GitHub-native notes: every commit since the previous tag, first-time contributors, diffstat) plus the built `dist/` zip attached. If the version was already released, the release steps are skipped — so pushes without a bump never double-release. `.github/workflows/ci.yml` runs the same checks on PRs.
 
 ## The two-engine rule
 
