@@ -8,17 +8,22 @@ import {
   ScanLine,
   Zap,
   Lock,
-  Globe,
+  Unlock,
   ChevronRight,
   Check,
   X,
-  Image,
   PenTool,
   RotateCcw,
   FileDown,
-  Eye,
+  EyeOff,
   Droplets,
   FileSearch,
+  Layers,
+  Sparkles,
+  Archive,
+  ShieldCheck,
+  WifiOff,
+  ArrowRight,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar.jsx";
 import GithubIcon from "../components/ui/GithubIcon.jsx";
@@ -27,91 +32,141 @@ import styles from "./Landing.module.css";
 const FEATURES = [
   {
     icon: Edit3,
-    label: "Edit existing text",
-    desc: "Click any text in a PDF. Edit in-place with automatic font detection. Change size, color, or font.",
+    label: "Edit PDF text",
+    color: "#e84545",
+    desc: "Click any text in a PDF and edit it in place, with automatic font detection, size, and color control.",
     tag: "Killer feature",
   },
   {
     icon: ScanLine,
-    label: "OCR scanner",
-    desc: "Make scanned and image PDFs searchable and editable with a local Ollama OCR model - runs 100% on your machine.",
-    tag: "AI-powered",
+    label: "OCR Scanner",
+    color: "#10b981",
+    desc: "Turn scanned PDFs into an editable Markdown document with a local Ollama model and GLM-powered formatting.",
+    tag: "New",
   },
   {
     icon: Merge,
     label: "Merge PDFs",
-    desc: "Drag and drop to combine multiple PDFs with full page-order control.",
+    color: "#3b82f6",
+    desc: "Combine multiple PDFs with full page-order control.",
   },
   {
     icon: Scissors,
     label: "Split PDF",
-    desc: "Split by page ranges, every N pages, or extract individual pages.",
+    color: "#e84545",
+    desc: "Split by page ranges or every N pages.",
   },
   {
-    icon: Image,
-    label: "Edit images",
-    desc: "Add, remove, replace, or reposition images anywhere in a PDF.",
+    icon: FileSearch,
+    label: "Extract pages",
+    color: "#f59e0b",
+    desc: "Pull specific pages into a brand-new file.",
   },
   {
-    icon: PenTool,
-    label: "e-Sign",
-    desc: "Draw, type, or upload your signature. Apply it to any page with no extra account needed.",
-  },
-  {
-    icon: FileDown,
-    label: "Compress",
-    desc: "Reduce PDF file size by up to 80% using browser-native object stream compression.",
+    icon: Layers,
+    label: "Reorder pages",
+    color: "#8b5cf6",
+    desc: "Drag and drop pages into the right order, visually.",
   },
   {
     icon: RotateCcw,
-    label: "Rotate and reorder",
-    desc: "Rotate individual pages and drag them into the right order visually.",
+    label: "Rotate PDF",
+    color: "#8b5cf6",
+    desc: "Rotate pages 90°, 180°, or 270° in one click.",
   },
   {
-    icon: Lock,
-    label: "Password protect",
-    desc: "Add 256-bit AES encryption or remove existing passwords.",
-  },
-  {
-    icon: Eye,
-    label: "Redact",
-    desc: "Permanently black out sensitive content, including text and images.",
+    icon: FileDown,
+    label: "Compress PDF",
+    color: "#f59e0b",
+    desc: "Iterative visual compression that hits your target file size.",
   },
   {
     icon: Droplets,
     label: "Watermark",
-    desc: "Add custom text or image watermarks with full opacity and rotation control.",
+    color: "#06b6d4",
+    desc: "Text or image watermarks with live preview and page targeting.",
   },
   {
-    icon: FileSearch,
-    label: "Form filler",
-    desc: "Fill, flatten, and export any PDF form instantly.",
+    icon: Lock,
+    label: "Protect PDF",
+    color: "#e84545",
+    desc: "Add password encryption before sharing.",
+  },
+  {
+    icon: Unlock,
+    label: "Unlock PDF",
+    color: "#10b981",
+    desc: "Remove copy and print restrictions from your own files.",
+  },
+  {
+    icon: EyeOff,
+    label: "Redact PDF",
+    color: "#a0a0ac",
+    desc: "Black out sensitive content before it leaves your machine.",
+  },
+];
+
+const OCR_STEPS = [
+  {
+    icon: ScanLine,
+    title: "Recognize locally",
+    desc: "Each page is rendered and read by glm-ocr on your own Ollama server. No image ever leaves your machine.",
+  },
+  {
+    icon: Sparkles,
+    title: "Format with GLM",
+    desc: "Raw text becomes structured Markdown: headings, lists, and page boundaries, with retry-safe formatting.",
+  },
+  {
+    icon: Archive,
+    title: "Edit and archive",
+    desc: "Fix anything in the built-in Markdown editor. Documents are archived in your browser with auto-generated Spanish titles.",
   },
 ];
 
 const COMPARE = [
   {
     feature: "Edit existing PDF text",
-    df: true,
-    others: "often paid or limited",
+    zero: true,
+    stirling: "limited",
+    cloud: "paid",
   },
-  { feature: "Unlimited file size", df: true, others: "often capped" },
   {
-    feature: "Unlimited tasks/day",
-    df: true,
-    others: "free plans may stop after a few tasks",
+    feature: "OCR to editable Markdown",
+    zero: true,
+    stirling: "basic OCR output",
+    cloud: "paid",
+  },
+  {
+    feature: "Zero install — runs in the browser",
+    zero: true,
+    stirling: "needs Docker / a server",
+    cloud: true,
+  },
+  {
+    feature: "Files never uploaded",
+    zero: true,
+    stirling: "if you host it yourself",
+    cloud: "cloud upload",
+  },
+  {
+    feature: "No account, no task limits",
+    zero: true,
+    stirling: true,
+    cloud: "free plan caps",
   },
   {
     feature: "Works offline",
-    df: true,
-    others: "usually browser or cloud-based",
+    zero: true,
+    stirling: true,
+    cloud: false,
   },
-  { feature: "No account required", df: true, others: "sometimes" },
-  { feature: "Files never uploaded", df: true, others: "not always" },
-  { feature: "OCR scanner", df: true, others: "often paid" },
-  { feature: "e-Sign PDFs", df: true, others: "often paid" },
-  { feature: "Open source (MIT)", df: true, others: "rare" },
-  { feature: "free", df: true, others: "many free plans have limits" },
+  {
+    feature: "Open source",
+    zero: true,
+    stirling: true,
+    cloud: false,
+  },
 ];
 
 function Cell({ val }) {
@@ -130,6 +185,8 @@ function Cell({ val }) {
   return <span className={styles.partial}>{val}</span>;
 }
 
+const GITHUB_URL = "https://github.com/zademy/PdfZero";
+
 export default function Landing() {
   return (
     <div className={styles.page}>
@@ -138,22 +195,18 @@ export default function Landing() {
       <section className={styles.hero}>
         <div className={styles.heroInner}>
           <div className={styles.heroEyebrow}>
-            <Globe size={12} /> Open source - MIT license - No backend
+            <ShieldCheck size={12} /> Open source · MIT · No backend, ever
           </div>
           <h1 className={styles.heroTitle}>
-            The PDF editor
+            Every PDF tool.
             <br />
-            <span className={styles.heroAccent}>students actually need</span>
+            <span className={styles.heroAccent}>Zero everything else.</span>
           </h1>
           <p className={styles.heroSub}>
-            Many PDF tools charge a few dollars a month or limit how much you
-            can do for free.
-            <em>
-              {" "}
-              PDFZero gives you text editing, OCR, signing, merging, and more at
-              no cost
-            </em>
-            , with your files never leaving your device.
+            PDFZero is the full toolkit — text editing, OCR to Markdown, merge,
+            split, watermark, encrypt — running{" "}
+            <em>entirely in your browser</em>. No uploads, no accounts, no
+            paywalls.
           </p>
           <div className={styles.heroActions}>
             <Link to="/editor" className={styles.primaryBtn}>
@@ -162,7 +215,7 @@ export default function Landing() {
               <ChevronRight size={14} />
             </Link>
             <a
-              href="https://github.com/bevinkatti/pdfzero"
+              href={GITHUB_URL}
               target="_blank"
               rel="noopener noreferrer"
               className={styles.ghostBtn}
@@ -182,7 +235,7 @@ export default function Landing() {
               <Check size={11} /> No task limits
             </span>
             <span className={styles.pill}>
-              <Check size={11} /> Works offline
+              <WifiOff size={11} /> Works offline
             </span>
             <span className={styles.pillAccent}>
               <Lock size={11} /> Files never uploaded
@@ -191,89 +244,102 @@ export default function Landing() {
         </div>
 
         <div className={styles.heroVisual}>
-          <div className={styles.editorPreview}>
-            <div className={styles.previewBar}>
+          <div className={styles.pipelineCard}>
+            <div className={styles.pipelineBar}>
               <div className={styles.previewDots}>
                 <span />
                 <span />
                 <span />
               </div>
               <span className={styles.previewTitle}>
-                annual-report.pdf - PDFZero
+                OCR Scanner — local pipeline
+              </span>
+              <span className={styles.pipelineLive}>
+                <span className={styles.liveDot} />
+                live
               </span>
             </div>
-            <div className={styles.previewContent}>
-              <div className={styles.previewToolbar}>
-                {["T", "B", "I", "|", "12", "|", "Helvetica"].map((t, i) => (
-                  <span
-                    key={i}
-                    className={t === "|" ? styles.sep : styles.tbItem}
-                  >
-                    {t}
-                  </span>
-                ))}
+            <div className={styles.pipelineBody}>
+              <div className={styles.pipePage}>
+                <div className={styles.pipeScanline} />
+                <div
+                  className={`${styles.pipeLine} ${styles.pipeHit}`}
+                  style={{ width: "78%", animationDelay: "0s" }}
+                />
+                <div className={styles.pipeLine} style={{ width: "92%" }} />
+                <div
+                  className={`${styles.pipeLine} ${styles.pipeHit}`}
+                  style={{ width: "64%", animationDelay: "0.5s" }}
+                />
+                <div className={styles.pipeLine} style={{ width: "88%" }} />
+                <div
+                  className={`${styles.pipeLine} ${styles.pipeHit}`}
+                  style={{ width: "48%", animationDelay: "1s" }}
+                />
+                <div className={styles.pipeLine} style={{ width: "70%" }} />
+                <div
+                  className={`${styles.pipeLine} ${styles.pipeHit}`}
+                  style={{ width: "56%", animationDelay: "1.5s" }}
+                />
+                <div className={styles.pipeLine} style={{ width: "34%" }} />
               </div>
-              <div className={styles.previewPage}>
-                <div className={styles.previewSelectedBlock}>
-                  Annual Report 2026
-                  <div className={styles.selHandle} />
-                </div>
-                <div
-                  className={styles.previewTextLine}
-                  style={{ width: "90%", marginTop: 28 }}
-                />
-                <div
-                  className={styles.previewTextLine}
-                  style={{ width: "75%", marginTop: 8 }}
-                />
-                <div
-                  className={styles.previewTextLine}
-                  style={{ width: "82%", marginTop: 8 }}
-                />
-                <div style={{ display: "flex", gap: 8, marginTop: 20 }}>
-                  <div
-                    className={styles.previewCard}
-                    style={{ background: "rgba(59,130,246,0.15)" }}
-                  >
-                    <span style={{ fontSize: 10, color: "#60a5fa" }}>
-                      Revenue
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 18,
-                        fontWeight: 600,
-                        color: "#93c5fd",
-                      }}
-                    >
-                      $4.2M
-                    </span>
-                  </div>
-                  <div
-                    className={styles.previewCard}
-                    style={{ background: "rgba(16,185,129,0.15)" }}
-                  >
-                    <span style={{ fontSize: 10, color: "#34d399" }}>
-                      Profit
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 18,
-                        fontWeight: 600,
-                        color: "#6ee7b7",
-                      }}
-                    >
-                      $840K
-                    </span>
-                  </div>
-                </div>
-                <div className={styles.previewCtx}>
-                  <span>B</span>
-                  <span>I</span>
-                  <span>Img</span>
-                  <span>Link</span>
-                  <span style={{ color: "#e84545" }}>Del</span>
+
+              <div className={styles.pipeArrow}>
+                <ArrowRight size={16} />
+                <div className={styles.pipeDots}>
+                  <span style={{ animationDelay: "0s" }} />
+                  <span style={{ animationDelay: "0.2s" }} />
+                  <span style={{ animationDelay: "0.4s" }} />
                 </div>
               </div>
+
+              <div className={styles.pipeOut}>
+                <span
+                  className={`${styles.outLine} ${styles.outHead}`}
+                  style={{ animationDelay: "0.2s" }}
+                >
+                  # Annual Report
+                </span>
+                <span
+                  className={`${styles.outLine} ${styles.outQuote}`}
+                  style={{ animationDelay: "0.5s" }}
+                >
+                  &gt; FY26 consolidated results
+                </span>
+                <span
+                  className={styles.outLine}
+                  style={{ animationDelay: "0.8s" }}
+                >
+                  Revenue: $4.2M (+18%)
+                </span>
+                <span
+                  className={styles.outLine}
+                  style={{ animationDelay: "1.1s" }}
+                >
+                  Profit: $840K (+9%)
+                </span>
+                <span
+                  className={`${styles.outLine} ${styles.outLi}`}
+                  style={{ animationDelay: "1.4s" }}
+                >
+                  Outlook: two new hubs
+                </span>
+              </div>
+            </div>
+            <div className={styles.pipelineStatus}>
+              <span className={styles.chip} style={{ animationDelay: "0s" }}>
+                <ScanLine size={10} /> Recognizing
+              </span>
+              <span className={styles.chip} style={{ animationDelay: "2s" }}>
+                <Sparkles size={10} /> Formatting
+              </span>
+              <span className={styles.chip} style={{ animationDelay: "4s" }}>
+                <Check size={10} /> Archived
+              </span>
+            </div>
+            <div className={styles.floatBadge}>
+              <Lock size={13} />
+              Runs 100% on-device
             </div>
           </div>
         </div>
@@ -281,18 +347,21 @@ export default function Landing() {
 
       <section className={styles.section}>
         <div className={styles.sectionInner}>
-          <div className={styles.sectionLabel}>Everything you need</div>
-          <h2 className={styles.sectionTitle}>All the tools. Free.</h2>
+          <div className={styles.sectionLabel}>The toolkit</div>
+          <h2 className={styles.sectionTitle}>Twelve tools. One page.</h2>
           <p className={styles.sectionSub}>
-            The core PDF tools people usually pay for, all in one free offline
-            app.
+            Everything runs client-side with pdf.js and pdf-lib. Open a file,
+            use any tool, download the result.
           </p>
           <div className={styles.featureGrid}>
             {FEATURES.map((f) => {
               const Icon = f.icon;
               return (
                 <div key={f.label} className={styles.featureCard}>
-                  <div className={styles.featureIconWrap}>
+                  <div
+                    className={styles.featureIconWrap}
+                    style={{ color: f.color, background: `${f.color}1a` }}
+                  >
                     <Icon size={20} />
                   </div>
                   <div className={styles.featureLabel}>
@@ -309,27 +378,129 @@ export default function Landing() {
         </div>
       </section>
 
+      <section className={styles.ocrSection}>
+        <div className={styles.ocrInner}>
+          <div className={styles.ocrCopy}>
+            <div className={styles.sectionLabel}>OCR Scanner</div>
+            <h2 className={styles.sectionTitle}>
+              Scanned PDFs become
+              <br />
+              living Markdown
+            </h2>
+            <p className={styles.ocrSub}>
+              The scanner is a full document workspace: it recognizes, formats,
+              and archives — and every step happens on your machine.
+            </p>
+            <div className={styles.ocrSteps}>
+              {OCR_STEPS.map((s) => {
+                const Icon = s.icon;
+                return (
+                  <div key={s.title} className={styles.ocrStep}>
+                    <div className={styles.ocrStepIcon}>
+                      <Icon size={15} />
+                    </div>
+                    <div>
+                      <div className={styles.ocrStepTitle}>{s.title}</div>
+                      <div className={styles.ocrStepDesc}>{s.desc}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className={styles.ocrVisual}>
+            <div className={styles.ocrWindow}>
+              <div className={styles.ocrBar}>
+                <div className={styles.previewDots}>
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <span className={styles.previewTitle}>
+                  OCR document — Markdown editor
+                </span>
+                <span className={styles.ocrBadgeDone}>
+                  <Check size={10} /> 3 pages
+                </span>
+              </div>
+              <div className={styles.ocrBody}>
+                <div className={styles.ocrDoc}>
+                  <div className={styles.mdHeading}># Annual Report 2026</div>
+                  <div className={styles.mdQuote}>
+                    &gt; Consolidated results across all four operating regions.
+                  </div>
+                  <div className={styles.mdText}>
+                    Revenue grew 18% year over year, driven by commercial
+                    expansion and the retention of key accounts across every
+                    region.
+                  </div>
+                  <div className={styles.mdListItem}>Revenue: $4.2M (+18%)</div>
+                  <div className={styles.mdListItem}>Profit: $840K (+9%)</div>
+                  <div className={styles.mdHeading2}>## Outlook</div>
+                  <div className={styles.mdText}>
+                    Two new distribution centers are planned for the next fiscal
+                    year…
+                  </div>
+                </div>
+                <div className={styles.ocrArchive}>
+                  <div className={styles.archiveTitle}>
+                    <Archive size={11} /> Archive
+                  </div>
+                  {[
+                    "Annual Report 2026",
+                    "Contract — Draft",
+                    "Invoices Q1",
+                  ].map((t, i) => (
+                    <div
+                      key={t}
+                      className={`${styles.archiveItem} ${i === 0 ? styles.archiveActive : ""}`}
+                    >
+                      <FileText size={11} />
+                      <span>{t}</span>
+                    </div>
+                  ))}
+                  <div className={styles.archiveMeta}>
+                    Stored in your browser
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className={styles.ocrTagRow}>
+              <span className={styles.ocrTag}>.md export</span>
+              <span className={styles.ocrTag}>.txt export</span>
+              <span className={styles.ocrTag}>Spanish auto-titles</span>
+              <span className={styles.ocrTag}>IndexedDB archive</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section
         className={styles.section}
         style={{ background: "var(--bg-nav)" }}
       >
         <div className={styles.sectionInner}>
           <div className={styles.sectionLabel}>Comparison</div>
-          <h2 className={styles.sectionTitle}>PDFZero vs other PDF tools</h2>
+          <h2 className={styles.sectionTitle}>How PDFZero compares</h2>
           <div className={styles.tableWrap}>
             <table className={styles.compareTable}>
               <thead>
                 <tr>
                   <th>Feature</th>
-                  <th className={styles.thDocforge}>
+                  <th className={styles.thZero}>
                     <div className={styles.thBadge}>PDFZero</div>
-                    <div className={styles.thPrice}>Free</div>
+                    <div className={styles.thPrice}>Free, forever</div>
                   </th>
                   <th>
-                    <div>Other tools</div>
+                    <div>Stirling PDF</div>
                     <div className={styles.thPrice}>
-                      Often paid or limited on free plans
+                      Open source, self-hosted
                     </div>
+                  </th>
+                  <th>
+                    <div>Smallpdf / iLovePDF</div>
+                    <div className={styles.thPrice}>Freemium, cloud</div>
                   </th>
                 </tr>
               </thead>
@@ -337,11 +508,14 @@ export default function Landing() {
                 {COMPARE.map((row) => (
                   <tr key={row.feature}>
                     <td>{row.feature}</td>
-                    <td className={styles.tdDocforge}>
-                      <Cell val={row.df} />
+                    <td className={styles.tdZero}>
+                      <Cell val={row.zero} />
                     </td>
                     <td>
-                      <Cell val={row.others} />
+                      <Cell val={row.stirling} />
+                    </td>
+                    <td>
+                      <Cell val={row.cloud} />
                     </td>
                   </tr>
                 ))}
@@ -362,15 +536,15 @@ export default function Landing() {
               <div className={styles.howNum}>01</div>
               <div className={styles.howTitle}>Open your PDF</div>
               <div className={styles.howDesc}>
-                Drag and drop or click to browse. The file is loaded directly
-                into your browser memory.
+                Drag and drop or click to browse. The file loads directly into
+                browser memory.
               </div>
             </div>
             <div className={styles.howCard}>
               <div className={styles.howNum}>02</div>
               <div className={styles.howTitle}>Edit everything</div>
               <div className={styles.howDesc}>
-                All processing uses pdf-lib and PDF.js running locally in
+                pdf.js and pdf-lib run locally in your browser, powered by
                 WebAssembly. Zero network requests.
               </div>
             </div>
@@ -378,8 +552,8 @@ export default function Landing() {
               <div className={styles.howNum}>03</div>
               <div className={styles.howTitle}>Download instantly</div>
               <div className={styles.howDesc}>
-                Your edited PDF is generated in-browser and downloaded directly.
-                No cloud, no server, no tracking.
+                The edited PDF is generated in-browser and saved directly. No
+                cloud, no server, no tracking.
               </div>
             </div>
           </div>
@@ -388,10 +562,10 @@ export default function Landing() {
 
       <section className={styles.ctaSection}>
         <div className={styles.ctaInner}>
-          <h2 className={styles.ctaTitle}>Ready to ditch the paywalls?</h2>
+          <h2 className={styles.ctaTitle}>Zero between you and your PDF</h2>
           <p className={styles.ctaSub}>
-            No account. No credit card. No upload. Just open a PDF and start
-            editing.
+            No account. No credit card. No upload. Just open a file and get to
+            work.
           </p>
           <div className={styles.ctaActions}>
             <Link
@@ -403,6 +577,7 @@ export default function Landing() {
               Open the editor
             </Link>
             <Link to="/tools" className={styles.ghostBtn}>
+              <PenTool size={14} />
               Browse all tools
               <ChevronRight size={14} />
             </Link>
@@ -412,24 +587,25 @@ export default function Landing() {
 
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
-          <div className={styles.footerLogo}>
-            <div className={styles.footerLogoMark}>
-              <FileText size={14} />
+          <div className={styles.footerBrand}>
+            <div className={styles.footerLogo}>
+              <div className={styles.footerLogoMark}>
+                <FileText size={14} />
+              </div>
+              <span>PDFZero</span>
             </div>
-            <span>PDFZero</span>
+            <div className={styles.footerTagline}>
+              The zero-upload PDF toolkit.
+            </div>
           </div>
           <div className={styles.footerLinks}>
-            <a
-              href="https://github.com/bevinkatti/pdfzero"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
               GitHub
             </a>
             <Link to="/tools">All Tools</Link>
             <Link to="/editor">Editor</Link>
             <a
-              href="https://github.com/bevinkatti/pdfzero/issues"
+              href={`${GITHUB_URL}/issues`}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -437,8 +613,13 @@ export default function Landing() {
             </a>
           </div>
           <div className={styles.footerNote}>
-            MIT License - Built with pdf-lib, PDF.js, Ollama (glm-ocr) - No
-            tracking, no analytics
+            <span className={styles.forkBadge}>Maintained fork</span>
+            PDFZero is an actively maintained fork of the original open-source
+            project — this is the version that keeps moving forward.
+            <span className={styles.footerTech}>
+              MIT License · Built with pdf-lib, pdf.js, mdxeditor &amp; Ollama
+              (glm-ocr) · No tracking, no analytics
+            </span>
           </div>
         </div>
       </footer>

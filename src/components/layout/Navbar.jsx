@@ -45,7 +45,7 @@ export default function Navbar({ variant = "app" }) {
         </div>
 
         <a
-          href="https://github.com/bevinkatti/pdfzero"
+          href="https://github.com/zademy/PdfZero"
           target="_blank"
           rel="noopener noreferrer"
           className={styles.githubBtn}
