@@ -1,6 +1,6 @@
 # AGENTS.md — PdfZero
 
-Browser-only PDF editor: every operation (render, edit, OCR, export, encrypt) runs client-side; no uploads, no backend. React 18 + Vite, plain JavaScript (JSX), no TypeScript.
+Browser-only PDF editor: every operation (render, edit, OCR, export, encrypt) runs client-side; no uploads, no backend. React 19 + Vite, plain JavaScript (JSX), no TypeScript.
 
 ## Commands
 
@@ -29,8 +29,13 @@ src/
   components/
     editor/           PdfCanvas, PageThumbnails, EditorToolbar, PropertiesPanel,
                       TextBlock, AnnotationLayer — the editing workspace
+    ocrscanner/       MarkdownEditor (mdxeditor wrapper: plugin set, custom
+                      search addon, data-URL image uploads, dark theming) and
+                      OcrScannerWorkspace (run → editor → archive panel)
     layout/           Navbar
-    ui/               DropZone (shared file-input, wraps react-dropzone)
+    ui/               DropZone (editor file-input), FileDropper + ActionBtn
+                      (shared Tools drop-area/action-button; Tools.module.css
+                      composes their styles)
   lib/                pure logic, no React (see two-engine rule)
     pdfRenderer.js    pdfjs: loadPdf, renderPage, renderThumbnail, classifyFont
     pdfExporter.js    pdf-lib: exportPdf, merge/split/rotate/watermark, page ops,
@@ -48,6 +53,14 @@ src/
     ocrFormat.js      GLM post-processing: formatOcrMarkdown (page-structure
                       Markdown), stripMarkdownFences; glmChat lives in
                       translation.js
+    ocrDocument.js    OCR document assembly: assembleOcrDocument (page
+                      headings + thematic breaks + fallback notes),
+                      formatWithRetry ×3, deriveFallbackTitle
+    ocrDocumentStore.js  archive persistence: IndexedDB store + in-memory
+                      twin (list/get/save/remove, save = upsert, newest-first)
+    ocrTitles.js      generateSpanishTitle over glmChat (injectable client):
+                      short Spanish title, derived-title fallback, never empty
+    markdownText.js   markdownToPlainText for the scanner's .txt export
   store/pdfStore.js   single Zustand store (usePdfStore) — see editing model
   styles/globals.css  design tokens; components use co-located *.module.css
 ```
@@ -81,11 +94,22 @@ Two exporters in `pdfExporter.js`, chosen by an explicit strategy on
   fidelity. Font resolution is the hoisted 3-tier `resolveFont` (embedded →
   custom TTF → std-14).
 
-Tool pages (`src/pages/Tools.jsx`) all follow the same shape: `FileDropper` → tool-specific `handleX` calling `lib` → `downloadBytes`. Reuse `DropZone`/`FileDropper` and `react-hot-toast` for feedback instead of new UI per tool.
+Tool pages (`src/pages/Tools.jsx`) all follow the same shape: `FileDropper` → tool-specific `handleX` calling `lib` → `ActionBtn`/`downloadBytes`. Reuse `DropZone`/`FileDropper`/`ActionBtn` (all in `components/ui/`) and `react-hot-toast` for feedback instead of new UI per tool.
+
+## OCR Scanner workspace (Tools screen, spec #6)
+
+The scanner is a two-zone document workspace, NOT the simple tool shape above:
+
+- **Run flow**: `ocrPage(p, { format: false })` per page (recognition only) → `formatWithRetry(raw, formatOcrMarkdown)` (3 attempts) → `assembleOcrDocument` (page headings + thematic breaks + Spanish fallback notes + `partialFormat` flag). Every run creates a NEW OCR document (glossary term, `CONTEXT.md`).
+- **Editor**: `@mdxeditor/editor` v4 behind `components/ocrscanner/MarkdownEditor.jsx`. The `markdown` prop is INITIAL-ONLY — content swaps go through the imperative ref (`setMarkdown`); `onChange` feeds only the autosave (~1s debounce, flushed on document switch and unmount). v4 quirks (load-bearing): MDXEditor drops React `children` — mount custom UI via a plugin publishing to `addComposerChild$`; `searchPlugin` ships the engine (`useEditorSearch`) but NO UI — the search box is our `SearchAddon`. Images embed as data URLs (FileReader), never uploaded. Dark theming lives in `mdxEditorTheme.css` (radix portals require `:root` scale overrides).
+- **Archive** (#9): `ocrDocumentStore` seam (IndexedDB; in-memory twin for tests). History panel: newest-first, click reopens via `store.get(id)` (never a stale list snapshot), trash deletes, title input is always editable. Race rules: any async write-back must carry `mdRef.current`, and a pending autosave is flushed before switching/unmounting.
+- **Spanish titles** (#10): provisional `deriveFallbackTitle` instantly, then `generateSpanishTitle` upgrades it in place — guarded by `titleEditedRef` + current-id check so a manual rename is never overwritten.
+- **Layout contract (user-mandated)**: run controls stay a centered ~560px column like every other tool; the shell expands to full width only for the editor + panel zone (compact until an open document or archive entries exist); the panel is a compact ~220px right column, stacking below 640px only.
+- **GLM-key gate**: without `VITE_GLM_API_KEY` the scanner disables Run OCR with a configuration alert. This is a deliberate product divergence from the PDF editor's page-level OCR (which stays key-optional) and does not weaken ADR 0002, which governs the recognition engine.
 
 ## Build gotchas (do not "simplify" these)
 
-- `vite.config.js`: `optimizeDeps.exclude: ['pdfjs-dist']`, `worker.format: 'es'`, `codeSplitting` groups for `pdf-lib`/`pdfjs` (Vite 8/rolldown replaced `manualChunks` — do not revert), and COOP/COEP headers on the dev server. Removing any of these breaks pdfjs workers. The COOP/COEP headers were load-bearing for tesseract.js (now removed, ADR 0002); they are deliberately kept — removing them is a separate follow-up.
+- `vite.config.js`: `optimizeDeps.exclude: ['pdfjs-dist']`, `worker.format: 'es'`, `codeSplitting` groups for `pdf-lib`/`pdfjs`/`mdxeditor` (Vite 8/rolldown replaced `manualChunks` — do not revert), and COOP/COEP headers on the dev server. Removing any of these breaks pdfjs workers. The COOP/COEP headers were load-bearing for tesseract.js (now removed, ADR 0002); they are deliberately kept — removing them is a separate follow-up. The OCR workspace is `React.lazy`-loaded from Tools so the heavy mdxeditor chunk (~490 KB gz) stays off the initial Tools load.
 - OCR requires a local Ollama server with the glm-ocr model (ADR 0002). There is no fallback engine: `ocrPage` throws `OcrUnavailableError` when detection fails, and the UI surfaces it as one actionable toast. The rest of the editor works without Ollama.
 - Font fidelity: `index.html` loads Noto Sans/Serif, Lato, Merriweather as visual substitutes for embedded PDF fonts; `classifyFont` maps embedded fonts onto these families. A new substitute family must be added in both places.
 
