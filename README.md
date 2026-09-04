@@ -1,20 +1,15 @@
-![cover](public/demos/cover.png)
+![cover](docs/images/landing.png)
 
-# 📄 PDFZero - Free Open-Source PDF Editor
+# 📄 PDFZero — Free Open-Source PDF Editor
 
-> [!WARNING]
-> **This is a community fork.** PDFZero was originally created by **[@bevinkatti](https://github.com/bevinkatti)** —
-> [bevinkatti/PdfZero](https://github.com/bevinkatti/PdfZero) (MIT License). All credit for the original idea,
-> implementation, and design belongs to him.
->
-> Since the upstream repository is no longer actively maintained, this fork carries the project forward with
-> bug fixes, editing-fidelity improvements, and new features (including a full OCR Scanner workspace and
-> AI-powered EN↔ES page translation — see [What's new in this fork](#whats-new-in-this-fork)). Please open
-> issues and PRs **here**, not upstream.
+> [!NOTE]
+> **This is a community fork.** PDFZero was originally created by **[@bevinkatti](https://github.com/bevinkatti)**
+> ([bevinkatti/PdfZero](https://github.com/bevinkatti/PdfZero), MIT License). All credit for the original idea,
+> implementation, and design belongs to him. Since upstream is no longer actively maintained, this fork carries
+> the project forward — please open issues and PRs **here**.
 
 > Edit PDFs without uploading anywhere. No task limits. No sign-up. Free.
 
-[![Fork of bevinkatti/PdfZero](https://img.shields.io/badge/fork%20of-bevinkatti%2FPDFZero-yellow?logo=github)](https://github.com/bevinkatti/PdfZero)
 [![Open Source](https://img.shields.io/badge/open%20source-yes-brightgreen)](<>)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Privacy First](https://img.shields.io/badge/privacy-100%25%20local-success)](<>)
@@ -29,20 +24,7 @@
 
 ## Why PDFZero?
 
-Many PDF tools charge monthly, cap file sizes, or limit what you can do on free plans. PDFZero keeps the core workflow simple: edit locally, keep your files on-device, and use the important tools without a paywall.
-
-## Demo
-
-![demo](public/demos/demo.gif)
-
-## 🌐 Try PDFZero Live
-
-🔗 **https://pdfzero-editor.vercel.app** — original project's deployment (base app).
-Edit, organize, secure, and optimize PDFs directly in your browser - all FREE while keeping your files on your device.
-
----
-
----
+Many PDF tools charge monthly, cap file sizes, or limit what you can do on free plans. PDFZero keeps the core workflow simple: edit locally, keep your files on-device, and use every tool without a paywall.
 
 | Feature                | Other PDF tools                       | **PDFZero**            |
 | ---------------------- | ------------------------------------- | ---------------------- |
@@ -52,10 +34,17 @@ Edit, organize, secure, and optimize PDFs directly in your browser - all FREE wh
 | File privacy           | Files may be uploaded to a server     | **100% local**         |
 | Offline use            | Usually browser or cloud-based        | **Works offline**      |
 | Open source            | Rare                                  | **MIT**                |
-| OCR for scanned PDFs   | Often paid                            | **Free**               |
-| e-Sign PDFs            | Often paid                            | **Free**               |
+| OCR for scanned PDFs   | Often paid                            | **Free (local)**       |
 | Translate PDFs         | Often paid                            | **Free (AI, opt-in)**  |
 | Cost                   | Many plans charge monthly             | **Free**               |
+
+---
+
+## Screenshots
+
+| Editor                                                                                                      | Tools                                                          |
+| ----------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| ![editor](docs/images/editor.png)                                                                            | ![tools](docs/images/tools.png)                                |
 
 ---
 
@@ -63,60 +52,52 @@ Edit, organize, secure, and optimize PDFs directly in your browser - all FREE wh
 
 ### Edit
 
-- **Edit existing PDF text** - click any text block, edit in-place, and auto-detect the original font
+- **Edit existing PDF text** — click any text block, edit in-place, auto-detected original font
 - Add new text boxes anywhere on the page
 - Change font family, size, color, bold, and italic
-- Add images and place them anywhere on the page
-- Sign documents with a signature pad
-
-### Translate
-
-- **AI page translation (English ↔ Spanish)** - one click from the editor toolbar translates the whole page in context, keeping terminology consistent across text blocks
-- Translated text is re-fitted to the original text-box geometry (measured widths, character budgets) so the page layout survives translation
-- Powered by [GLM-5.3-Flash](https://docs.z.ai/) via the Z.AI API — **opt-in** and requires your own API key (see [Getting Started](#getting-started))
+- Annotations (highlight, redact, shapes)
+- **AI page translation (English ↔ Spanish)** — one click from the editor toolbar translates the page in context, re-fitted to the original text-box geometry. Powered by GLM-5.3-Flash via the Z.AI API — opt-in, your own key.
 
 ### Organize
 
 - Merge multiple PDFs with drag-to-reorder
-- Split PDF by page range
+- Split PDF by page range, every N pages, or one file per page
 - Reorder pages via drag-and-drop
-- Rotate individual pages
-- Extract specific pages
+- Rotate all or individual pages
+- Extract specific pages (`1, 3, 5-8`)
 
 ### Optimize
 
-- Compress PDF with browser-native object stream compression
+- Lossless compression
 - Target-size compression with iterative quality reduction
-- PDF/A compliance check
 
 ### Secure
 
-- Password protect with AES-256
-- Remove existing passwords
+- Password protect with AES-256 (open + owner passwords)
+- **Unlock: real decryption** — removes the Standard security handler entirely (AES-256/AESV3, AES-128, RC4 40/128), restrictions gone for good
 - Redact sensitive content permanently
-- Add text or image watermarks with live preview, tiling, and page targeting
+- Text or image watermarks with live preview, tiling, and page targeting
 
 ### Smart
 
-- **OCR Scanner workspace** — run OCR on scanned PDFs and the result opens in a rich markdown editor (tables, lists, code blocks preserved) instead of a text dump; automatic Spanish titles, a persistent document archive (IndexedDB) with reopen/delete, ~1s autosave, and .md/.txt export
-- OCR for scanned and image PDFs with a local Ollama `glm-ocr` model, running 100% on your machine (page-level OCR also available inside the editor)
-- AI font matching to keep text edits visually consistent
+- **OCR Scanner workspace** — scanned PDFs become editable markdown documents (tables, lists, code blocks preserved) in a rich editor, with automatic Spanish titles, a persistent IndexedDB archive, ~1s autosave, and .md/.txt export
+- OCR recognition runs 100% locally on your machine via a local Ollama `glm-ocr` model (page-level OCR also available inside the editor)
 - Per-block background color sampling so edits and whiteouts blend into watermarked or colored pages
 
 ---
 
 ## Tech Stack
 
-| Library                                     | Purpose                                                    |
-| ------------------------------------------- | ---------------------------------------------------------- |
-| [pdf-lib](https://pdf-lib.js.org/)          | PDF creation, modification, export                         |
-| [PDF.js](https://mozilla.github.io/pdf.js/) | PDF rendering and text extraction                          |
-| [Ollama](https://ollama.com/) + `glm-ocr`   | OCR recognition, 100% local                                |
-| [GLM-5.3-Flash (Z.AI)](https://docs.z.ai/)  | OCR formatting, Spanish titles, EN↔ES translation (opt-in) |
-| [@mdxeditor/editor](https://mdxeditor.dev/) | Markdown editing in the OCR Scanner                        |
-| [React](https://react.dev/)                 | UI framework                                               |
-| [Zustand](https://zustand-demo.pmnd.rs/)    | State management                                           |
-| [Vite](https://vitejs.dev/)                 | Build tool                                                 |
+| Library                                      | Purpose                                                     |
+| -------------------------------------------- | ----------------------------------------------------------- |
+| [pdf-lib](https://pdf-lib.js.org/)           | PDF creation, modification, export, encryption              |
+| [PDF.js](https://mozilla.github.io/pdf.js/)  | PDF rendering and text extraction                           |
+| [Ollama](https://ollama.com/) + `glm-ocr`    | OCR recognition, 100% local                                 |
+| [GLM-5.3-Flash (Z.AI)](https://docs.z.ai/)   | OCR formatting, Spanish titles, EN↔ES translation (opt-in)  |
+| [@mdxeditor/editor](https://mdxeditor.dev/)  | Markdown editing in the OCR Scanner                         |
+| [React](https://react.dev/)                  | UI framework                                                |
+| [Zustand](https://zustand-demo.pmnd.rs/)     | State management                                            |
+| [Vite](https://vitejs.dev/)                  | Build tool                                                  |
 
 **All PDF processing is 100% browser-native — your files never leave your device.** OCR recognition runs on your own machine via a local Ollama server. The only network features are the opt-in GLM ones (OCR formatting/titles in the Scanner, page translation), which send text snippets to the Z.AI API using your own key. Everything else works offline.
 
@@ -143,7 +124,7 @@ npm test         # Vitest unit tests (src/lib/*.test.js)
 npm run lint     # ESLint
 ```
 
-> The dev server serves COOP/COEP headers configured in `vite.config.js` — kept deliberately (they were load-bearing for the previous OCR engine); don't remove them.
+> The dev server serves COOP/COEP headers configured in `vite.config.js` — kept deliberately; don't remove them.
 >
 > Without `VITE_GLM_API_KEY`, the OCR Scanner disables Run OCR with a configuration alert; without Ollama, OCR surfaces one actionable setup toast. Everything else in the app works without either.
 
@@ -152,141 +133,44 @@ npm run lint     # ESLint
 ## Architecture
 
 ```text
-src/
-  components/
-    editor/          # PdfCanvas, PageThumbnails, TextBlock, AnnotationLayer, Toolbars
-    ocrscanner/      # OCR Scanner workspace: markdown editor + archive panel
-    layout/          # Navbar
-    ui/              # DropZone, FileDropper, ActionBtn (shared components)
-  lib/               # pure logic, no React
-    pdfRenderer.js   # PDF.js wrapper — render pages, extract text, classify fonts
-    pdfExporter.js   # pdf-lib wrapper — export, merge, split, compress, watermark, encrypt
-    pdfTextLayout.js # text geometry: lines, runs, glyph fitting for overlays/exports
-    ocrPipeline.js   # OCR flow: render → Ollama glm-ocr → block cleanup → GLM formatting
-    ollamaOcr.js     # the only OCR engine: local Ollama glm-ocr (ADR 0002)
-    ocrBlocks.js     # deterministic OCR block cleanup (ADR 0001)
-    ocrFormat.js     # GLM page-structure Markdown formatting
-    ocrDocument.js   # document assembly, formatting retries, fallback titles
-    ocrDocumentStore.js # OCR document archive over IndexedDB
-    ocrTitles.js     # automatic Spanish titles (GLM, with derived fallback)
-    markdownText.js  # markdown → plain text for .txt export
-    translation.js   # GLM chat/translation client (EN↔ES), pure functions + tests
-  pages/
-    Landing.jsx      # Marketing landing page
-    Editor.jsx       # Main PDF editor
-    Tools.jsx        # Individual tool UIs
-  store/
-    pdfStore.js      # Zustand global state
-  styles/
-    globals.css      # Design system tokens
-```
-
-### Text editing architecture
-
-PDFZero uses a layered, non-destructive editing model:
-
-```text
 PDF bytes
   -> PDF.js render + text extraction
   -> canonical text run metadata
   -> browser overlay editor
   -> layout-fit/export planner
   -> pdf-lib browser export
-  -> future PDFium/MuPDF advanced engine
 ```
 
-Current browser path:
+1. **Render** — PDF.js renders each page to a high-resolution canvas.
+2. **Extract** — PDF.js extracts text runs, transforms, font ids, colors, baselines, and edit boxes.
+3. **Model** — the store keeps original run metadata (text, bbox, baseline, font fallback, color, glyph advances).
+4. **Overlay** — editable DOM text sits over the PDF raster with local background sampling to hide the original text while editing.
+5. **Fit** — on export, edited text is laid out line-by-line and fit back to the original run width.
+6. **Export** — pdf-lib writes background patches, replacement text, annotations, and page operations.
 
-1. **Render** - PDF.js renders each page to a high-resolution canvas.
-2. **Extract** - PDF.js extracts text runs, transforms, font ids, approximate font names, color, baseline, ascent/descent, and edit boxes.
-3. **Model** - PDFZero stores original run metadata: text, bbox, baseline, font fallback, color, line height, estimated glyph advances, and max edit dimensions.
-4. **Overlay** - Editable DOM text is positioned over the PDF raster and uses local background sampling to hide the original text while editing.
-5. **Fit** - On export, edited text is laid out line-by-line and fit back to the original run width using conservative character spacing and small size adjustment.
-6. **Export** - pdf-lib writes background patches, replacement text, annotations, page operations, and document tools.
-
-This is not yet full Acrobat/Foxit-style object editing. The current path is an overlay-and-repair browser exporter. The production-grade target is an advanced engine that can inspect and rewrite PDF page objects directly:
-
-```text
-src/pdf/
-  engines/
-    pdfjsEngine.ts       # Browser render/extract fallback
-    pdfiumEngine.ts      # Planned object-level editor
-    mupdfEngine.ts       # Optional native/WASM alternative
-  model/
-    TextRun.ts           # glyphs, fonts, colors, matrices, resources
-    FontResource.ts
-    EditOperation.ts
-  layout/
-    glyphMetrics.ts
-    fitText.ts
-    paragraphReflow.ts
-  background/
-    renderWithoutText.ts
-    inpaintPatch.ts
-  export/
-    exportPlanner.ts
-    pdfLibOverlayExporter.ts
-    objectRewriteExporter.ts
-  repair/
-    visualDiff.ts
-    autoFitRepair.ts
-```
-
-The browser-only implementation can be excellent for simple and moderately complex PDFs. True high-level editing for embedded subset fonts, object removal, kerning-preserving replacement, complex scripts, and image/gradient background reconstruction requires PDFium, MuPDF, or another real PDF content engine.
+This is an overlay-and-repair browser exporter, not yet full Acrobat-style object editing; embedded subset fonts and kerning-preserving replacement remain future work. See [AGENTS.md](AGENTS.md) for the full directory map and per-module validation workflows.
 
 ---
 
 ## What's new in this fork
 
-Changes on top of the original [bevinkatti/PdfZero](https://github.com/bevinkatti/PdfZero):
+Highlights on top of the original [bevinkatti/PdfZero](https://github.com/bevinkatti/PdfZero):
 
-- **OCR Scanner workspace** — scanned PDFs become editable markdown documents: per-page GLM formatting with 3x retries, rich markdown editor (full toolbar, rich↔source toggle, search & replace, inline data-URL images), automatic Spanish titles, persistent IndexedDB archive with ~1s autosave, and .md/.txt export.
-- **Local-first OCR engine swap** — Tesseract.js replaced by a local Ollama `glm-ocr` model (ADR 0002): better recognition on scanned documents while staying 100% on your machine, with deterministic block cleanup upstream of formatting (ADR 0001).
-- **AI page translation (EN↔ES)** — page-level contextual translation from the editor toolbar, with GLM-5.3-Flash, segment budgets, echo-retry parsing, and width-fitted re-layout so translated text stays inside the original boxes.
-- **V2 text layout & export fidelity** — improved line/run geometry, per-block background color detection (watermarks and colored regions no longer break whiteouts), and more accurate export placement.
-- **Editing accuracy fixes** — corrected color detection heuristics and export behavior for edge-case pages.
-- **Translation regression tests** — `src/lib/translation.test.js` (Vitest) covering separators, retries, and budget fitting.
+- **Real PDF decryption (Unlock)** — removes AES-256/AES-128/RC4 encryption entirely instead of re-saving ciphertext; optional open-password input. Found and fixed via a full 12-tool E2E battery with byte-level output verification.
+- **Landing page redesign** — the fork's own product identity: animated OCR pipeline hero, honest 4-way comparison (vs Stirling PDF / Smallpdf / iLovePDF), English-only content, fork-attributed footer.
+- **Deep-linkable tools** — `/tools/merge`, `/tools/split`, … activate their tool directly; URL stays in sync while browsing.
+- **OCR Scanner workspace** — scanned PDFs become editable markdown documents with GLM formatting (3× retries), automatic Spanish titles, persistent IndexedDB archive, autosave, and .md/.txt export.
+- **Local-first OCR engine** — Tesseract.js replaced by a local Ollama `glm-ocr` model (ADR 0002), with deterministic block cleanup upstream of formatting (ADR 0001).
+- **AI page translation (EN↔ES)** — page-level contextual translation with width-fitted re-layout so translated text stays inside the original boxes.
+- **v1.0.0 release automation** — version badge from `package.json`, CI (lint + tests + build) on PRs, auto tag + GitHub Release (full commit list + dist zip) on every green push with a version bump.
 
-See [CHANGELOG.md](CHANGELOG.md) for details, and the
-[commit history](https://github.com/zademy/PdfZero/commits) for everything else.
-
----
-
-## Roadmap
-
-- [x] PDF rendering and text extraction overlay
-- [x] Add new text boxes
-- [x] Drag-and-drop text positioning
-- [x] Annotations (highlight, redact, shapes)
-- [x] Merge, split, compress tools
-- [x] Watermark, rotate, page management
-- [x] Preserve richer original text-run metadata for export fitting
-- [x] Fit edited text back to the original run width during pdf-lib export
-- [x] OCR text extraction via local Ollama glm-ocr
-- [x] OCR Scanner workspace: markdown editor, archive, Spanish titles
-- [x] e-Sign with canvas signature pad
-- [x] Add images to pages
-- [x] AI page translation (EN↔ES) with box-fitted layout
-- [ ] **v1.2** - OCR searchable text layer embedded into the PDF (today OCR exports extracted text)
-- [ ] **v1.2** - Visual export diff for edited regions
-- [ ] **v1.2** - Packaged fallback font registry with width-vector matching
-- [ ] **v1.2** - Image replace/remove in the editor
-- [ ] **v1.2** - Paragraph grouping and multi-line reflow
-- [ ] **v1.3** - PDF to Word/DOCX export
-- [ ] **v1.3** - Form filling and flattening
-- [ ] **v1.3** - Batch processing
-- [ ] **Advanced** - PDFium/MuPDF object-level text replacement
-- [ ] **Advanced** - Embedded font reuse and kerning-preserving export
-- [ ] **Advanced** - Background reconstruction by rendering pages with target text objects removed
+See [CHANGELOG.md](CHANGELOG.md) for the complete history.
 
 ---
 
 ## Contributing
 
-PRs are very welcome — against **this fork**. Please read
-[CONTRIBUTING.md](CONTRIBUTING.md) first, open an issue for major changes, and
-follow our [Code of Conduct](CODE_OF_CONDUCT.md). See also
-[SECURITY.md](SECURITY.md) and [SUPPORT.md](SUPPORT.md).
+PRs are very welcome — against **this fork**. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first, open an issue for major changes, and follow our [Code of Conduct](CODE_OF_CONDUCT.md). See also [SECURITY.md](SECURITY.md) and [SUPPORT.md](SUPPORT.md).
 
 ```bash
 npm install
