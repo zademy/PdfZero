@@ -22,7 +22,6 @@ import {
   Sparkles,
   Archive,
   ShieldCheck,
-  WifiOff,
   ArrowRight,
 } from "lucide-react";
 import Navbar from "../components/layout/Navbar.jsx";
@@ -156,12 +155,6 @@ const COMPARE = [
     cloud: "free plan caps",
   },
   {
-    feature: "Works offline",
-    zero: true,
-    stirling: true,
-    cloud: false,
-  },
-  {
     feature: "Open source",
     zero: true,
     stirling: true,
@@ -233,9 +226,6 @@ export default function Landing() {
             </span>
             <span className={styles.pill}>
               <Check size={11} /> No task limits
-            </span>
-            <span className={styles.pill}>
-              <WifiOff size={11} /> Works offline
             </span>
             <span className={styles.pillAccent}>
               <Lock size={11} /> Files never uploaded
